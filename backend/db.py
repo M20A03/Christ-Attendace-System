@@ -40,12 +40,18 @@ def get_database_url() -> str:
     Format DATABASE_URL to use async drivers.
     PostgreSQL -> postgresql+asyncpg://...
     SQLite fallback for local testing -> sqlite+aiosqlite:///...
+    Automatically handles Neon/Supabase sslmode=require -> ssl=require for asyncpg.
     """
     url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./christ_attendance.db")
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    # Handle sslmode parameter for asyncpg compatibility (Neon & Supabase)
+    if "sslmode=require" in url:
+        url = url.replace("sslmode=require", "ssl=require")
+        
     return url
 
 
