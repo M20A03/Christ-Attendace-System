@@ -337,3 +337,4 @@ async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksR
         pass
 
     return get_mock_marks(student)
+

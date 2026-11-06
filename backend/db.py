@@ -171,3 +171,4 @@ async def delete_user_session(user_id: str):
         async with session.begin():
             stmt = delete(Session).where(Session.user_id == user_id)
             await session.execute(stmt)
+

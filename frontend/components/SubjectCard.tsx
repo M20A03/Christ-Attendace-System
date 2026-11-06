@@ -101,3 +101,4 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
     </div>
   );
 };
+

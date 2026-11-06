@@ -68,3 +68,4 @@ class MarksResponse(BaseModel):
 
 class LogoutRequest(BaseModel):
     user_id: Optional[str] = None
+

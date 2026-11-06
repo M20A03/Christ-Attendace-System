@@ -160,3 +160,4 @@ export async function initiateKeycloakLogin(isDemo = false): Promise<void> {
 
   window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
 }
+

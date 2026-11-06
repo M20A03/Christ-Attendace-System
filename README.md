@@ -231,3 +231,4 @@ Open `http://localhost:3000` in your browser.
 ### Android (Chrome)
 1. Open the app in Chrome.
 2. Tap the **"Add to Home Screen"** banner or open the three-dot menu and select **"Install app"**.
+

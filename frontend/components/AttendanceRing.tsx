@@ -137,3 +137,4 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
     </div>
   );
 };
+

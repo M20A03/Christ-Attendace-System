@@ -91,3 +91,4 @@ export function simulateAttendance(
   if (newTotal <= 0) return 100;
   return Math.round((newAttended / newTotal) * 1000) / 10;
 }
+

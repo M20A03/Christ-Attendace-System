@@ -174,3 +174,4 @@ async def get_or_refresh_valid_access_token(
         await db.update_user_refresh_token(user_id, new_encrypted)
 
     return new_access_token, user_id
+

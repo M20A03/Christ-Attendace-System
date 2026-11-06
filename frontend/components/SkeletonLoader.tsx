@@ -70,3 +70,4 @@ export const SkeletonList: React.FC = () => {
     </div>
   );
 };
+
