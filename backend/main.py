@@ -1,0 +1,269 @@
+"""
+Christ Attendance Viewer - FastAPI Backend
+Provides OIDC Keycloak PKCE token exchange, AES-GCM encrypted session management,
+and authenticated proxying to Christ University attendance/marks endpoints.
+"""
+import os
+from contextlib import asynccontextmanager
+from typing import Optional
+
+from fastapi import FastAPI, Request, HTTPException, Depends, Header, status
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+import db
+import crypto
+import auth
+import portal
+from models import (
+    TokenExchangeRequest,
+    AuthResponse,
+    StudentInfo,
+    AttendanceResponse,
+    MarksResponse,
+    LogoutRequest,
+)
+
+# Rate limiter setup (5 requests per minute per IP for exchange endpoint)
+limiter = Limiter(key_func=get_remote_address)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables on startup
+    await db.init_db()
+    yield
+
+
+app = FastAPI(
+    title="Christ Attendance Viewer API",
+    description="Backend API for Christ University attendance and marks viewer PWA",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS configuration
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+custom_origin = os.getenv("FRONTEND_URL")
+if custom_origin:
+    allowed_origins.append(custom_origin.rstrip("/"))
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+
+def get_token_from_header(authorization: Optional[str] = Header(None)) -> Optional[str]:
+    """Extract Bearer token from Authorization header."""
+    if not authorization:
+        return None
+    parts = authorization.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    return authorization
+
+
+@app.get("/health", tags=["System"])
+async def health_check():
+    """Service health and sanity check."""
+    return {
+        "status": "ok",
+        "service": "Christ Attendance Viewer API",
+        "version": "1.0.0",
+    }
+
+
+@app.post("/auth/exchange", response_model=AuthResponse, tags=["Authentication"])
+@limiter.limit("5/minute")
+async def exchange_token(request: Request, body: TokenExchangeRequest):
+    """
+    Exchanges PKCE authorization code + code_verifier for Keycloak access & refresh tokens.
+    Encrypts the refresh token using AES-256-GCM and persists it in PostgreSQL.
+    Returns access_token in memory for frontend use (never logged).
+    """
+    # Demo / Test Mode support:
+    # If the user is testing the app without live Keycloak credentials, provide seamless demo login.
+    if body.code.startswith("demo_code_") or body.code == "mock-demo-code":
+        mock_user = await db.upsert_user_and_session(
+            keycloak_sub="demo-student-sub-12345",
+            name="Mayank Raj",
+            reg_number="2347101",
+            encrypted_refresh_token=crypto.encrypt_token("demo_refresh_token_test"),
+        )
+        return AuthResponse(
+            access_token="demo_access_token_valid",
+            token_type="Bearer",
+            expires_in=3600,
+            user_id=mock_user.id,
+            student=StudentInfo(
+                name=mock_user.name,
+                reg_number=mock_user.reg_number,
+            ),
+        )
+
+    # Standard Keycloak exchange
+    token_data = await auth.exchange_code_for_tokens(
+        code=body.code,
+        code_verifier=body.code_verifier,
+        redirect_uri=body.redirect_uri,
+    )
+
+    access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    expires_in = token_data.get("expires_in", 300)
+
+    if not access_token or not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token exchange response missing required tokens.",
+        )
+
+    # Extract user profile from token payload claims
+    claims = auth.decode_jwt_payload(access_token)
+    keycloak_sub = claims.get("sub") or "anonymous_student"
+    student_name = claims.get("name") or claims.get("given_name") or "Christ Student"
+    reg_number = claims.get("preferred_username") or claims.get("username") or claims.get("email", "Student")
+
+    # Encrypt refresh token with AES-256-GCM
+    encrypted_refresh = crypto.encrypt_token(refresh_token)
+
+    # Persist user & encrypted session in database
+    user = await db.upsert_user_and_session(
+        keycloak_sub=keycloak_sub,
+        name=student_name,
+        reg_number=reg_number,
+        encrypted_refresh_token=encrypted_refresh,
+    )
+
+    # Return access_token and student info
+    return AuthResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=expires_in,
+        user_id=user.id,
+        student=StudentInfo(
+            name=user.name,
+            reg_number=user.reg_number,
+        ),
+    )
+
+
+async def resolve_student_and_token(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+) -> tuple[str, StudentInfo]:
+    """
+    Validates token and handles automatic token refresh if expired.
+    """
+    token = get_token_from_header(authorization)
+    if not token and not x_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization token or X-User-Id header.",
+        )
+
+    # Demo bypass
+    if token and token.startswith("demo_"):
+        return token, StudentInfo(name="Mayank Raj", reg_number="2347101")
+
+    # Try resolving user from token claims or x_user_id
+    claims = auth.decode_jwt_payload(token) if token else {}
+    sub = claims.get("sub")
+
+    user_record = None
+    if x_user_id:
+        sess = await db.get_user_session(x_user_id)
+        if sess:
+            user_record = sess[0]
+    elif sub:
+        sess = await db.get_user_session_by_sub(sub)
+        if sess:
+            user_record = sess[0]
+
+    student = StudentInfo(
+        name=user_record.name if user_record else (claims.get("name") or "Student"),
+        reg_number=user_record.reg_number if user_record else (claims.get("preferred_username") or "2347101"),
+    )
+
+    # If user_record is known and token is missing or expired, refresh it
+    if user_record:
+        valid_token, _ = await auth.get_or_refresh_valid_access_token(
+            user_id=user_record.id,
+            current_access_token=token,
+        )
+        return valid_token, student
+
+    if token and not auth.is_token_expired(token):
+        return token, student
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Session expired — please log in again",
+    )
+
+
+@app.get("/attendance", response_model=AttendanceResponse, tags=["Portal"])
+async def get_attendance(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Fetches student attendance from the Christ University internal portal.
+    Refreshes access_token via stored encrypted refresh_token if expired.
+    """
+    token, student = await resolve_student_and_token(authorization, x_user_id)
+    return await portal.fetch_student_attendance(token, student)
+
+
+@app.get("/marks", response_model=MarksResponse, tags=["Portal"])
+async def get_marks(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Fetches student marks breakdown from the Christ University internal portal.
+    Refreshes access_token via stored encrypted refresh_token if expired.
+    """
+    token, student = await resolve_student_and_token(authorization, x_user_id)
+    return await portal.fetch_student_marks(token, student)
+
+
+@app.post("/auth/logout", tags=["Authentication"])
+async def logout(
+    request: Request,
+    body: LogoutRequest = None,
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Invalidates session by deleting the stored encrypted refresh token from the database.
+    """
+    target_user_id = (body.user_id if body else None) or x_user_id
+    if target_user_id:
+        await db.delete_user_session(target_user_id)
+
+    return {
+        "success": True,
+        "message": "Logged out successfully",
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,0 +1,168 @@
+/**
+ * API client to communicate with the FastAPI backend.
+ */
+import { getAuthSession, setAuthSession, clearAuthSession, StudentInfo } from "./auth";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export interface SubjectAttendance {
+  name: string;
+  attended: number;
+  total: number;
+  percentage: number;
+  subject_code?: string;
+  faculty?: string;
+}
+
+export interface TodayClass {
+  subject: string;
+  time: string;
+  status: "present" | "absent" | "not_marked" | string;
+  room?: string;
+}
+
+export interface AttendanceData {
+  student: StudentInfo;
+  overall_attendance: number;
+  subjects: SubjectAttendance[];
+  today_classes: TodayClass[];
+  last_updated?: string;
+}
+
+export interface SubjectMark {
+  subject: string;
+  cia1?: number;
+  cia2?: number;
+  cia3?: number;
+  attendance_marks?: number;
+  total?: number;
+  max_marks?: number;
+  grade?: string;
+}
+
+export interface MarksData {
+  student: StudentInfo;
+  semester?: string;
+  overall_gpa?: number;
+  marks: SubjectMark[];
+}
+
+export class ApiError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const session = getAuthSession();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (session.accessToken) {
+    headers["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+  if (session.userId) {
+    headers["X-User-Id"] = session.userId;
+  }
+
+  const url = `${API_BASE_URL}${endpoint}`;
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err: any) {
+    throw new ApiError(
+      "Unable to connect to Christ Attendance server. Please check your network.",
+      0
+    );
+  }
+
+  if (response.status === 401) {
+    clearAuthSession();
+    if (typeof window !== "undefined") {
+      window.location.href = "/?expired=true";
+    }
+    throw new ApiError("Session expired — please log in again", 401);
+  }
+
+  if (!response.ok) {
+    let errorDetail = "An unexpected error occurred.";
+    try {
+      const errJson = await response.json();
+      errorDetail = errJson.detail || errJson.message || response.statusText;
+    } catch {
+      errorDetail = response.statusText;
+    }
+    throw new ApiError(errorDetail, response.status);
+  }
+
+  return response.json();
+}
+
+/**
+ * Exchange OAuth PKCE authorization code for access tokens and user profile
+ */
+export async function exchangeAuthCode(
+  code: string,
+  codeVerifier: string,
+  redirectUri?: string
+) {
+  const data = await request<{
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    user_id: string;
+    student: StudentInfo;
+  }>("/auth/exchange", {
+    method: "POST",
+    body: JSON.stringify({
+      code,
+      code_verifier: codeVerifier,
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  setAuthSession(data.access_token, data.user_id, data.student, data.expires_in);
+  return data;
+}
+
+/**
+ * Fetch attendance data on demand
+ */
+export async function fetchAttendance(): Promise<AttendanceData> {
+  return request<AttendanceData>("/attendance", { method: "GET" });
+}
+
+/**
+ * Fetch marks breakdown
+ */
+export async function fetchMarks(): Promise<MarksData> {
+  return request<MarksData>("/marks", { method: "GET" });
+}
+
+/**
+ * Log out and invalidate server session
+ */
+export async function logoutUser() {
+  const session = getAuthSession();
+  try {
+    await request("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ user_id: session.userId }),
+    });
+  } catch {
+    // Silent fail on logout network issues
+  } finally {
+    clearAuthSession();
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
+  }
+}
