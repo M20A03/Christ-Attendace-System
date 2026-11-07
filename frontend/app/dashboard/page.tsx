@@ -111,17 +111,17 @@ export default function DashboardPage() {
               </h2>
             </div>
 
-            {/* Last updated badge with refresh action */}
+            {/* Live refresh action badge */}
             <button
               onClick={() => loadAttendance(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shadow-sm"
+              title="Fetch latest live attendance marked by teachers"
             >
-              <Clock className="w-3 h-3 text-slate-400" />
-              <span>Last updated: {formatSecondsAgo(secondsAgo)}</span>
               <RefreshCw
-                className={`w-3 h-3 ml-0.5 text-slate-400 ${refreshing ? "animate-spin text-emerald-500" : ""}`}
+                className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-500" : "text-emerald-600 dark:text-emerald-400"}`}
               />
+              <span>{refreshing ? "Checking Live ESPro..." : `Live • ${formatSecondsAgo(secondsAgo)}`}</span>
             </button>
           </div>
 
