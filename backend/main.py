@@ -25,6 +25,7 @@ import portal
 from models import (
     TokenExchangeRequest,
     DirectTokenRequest,
+    LoginRequest,
     AuthResponse,
     StudentInfo,
     AttendanceResponse,
@@ -89,6 +90,64 @@ async def health_check():
         "service": "Christ Attendance Viewer API",
         "version": "1.0.0",
     }
+
+
+@app.post("/auth/login", response_model=AuthResponse, tags=["Authentication"])
+async def password_login(body: LoginRequest):
+    """
+    Direct student login with Register Number / University Email and Password.
+    Persists credentials encrypted with AES-256-GCM and returns a long-lived persistent session.
+    """
+    import secrets
+
+    username = body.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Please enter your Register Number or University Email.")
+    if not body.password.strip():
+        raise HTTPException(status_code=400, detail="Please enter your password.")
+
+    # Determine register number
+    reg_number = username
+    if "@" in username:
+        reg_number = username.split("@")[0]
+
+    # Clean student name
+    student_name = body.name.strip() if (body.name and body.name.strip()) else ""
+    if not student_name:
+        if username.isdigit():
+            student_name = f"Student {username}"
+        else:
+            # Derive from email / username (e.g. "mayank.raj" -> "Mayank Raj")
+            name_parts = reg_number.replace(".", " ").replace("_", " ").split()
+            student_name = " ".join([p.capitalize() for p in name_parts])
+            if not student_name:
+                student_name = "Christ Student"
+
+    # Create high-entropy persistent session token
+    session_token = f"cu_sess_{secrets.token_urlsafe(32)}"
+
+    # Store encrypted password at rest using AES-256-GCM
+    encrypted_secret = crypto.encrypt_token(body.password)
+    user = await db.upsert_user_and_session(
+        keycloak_sub=f"student_{reg_number}",
+        name=student_name,
+        reg_number=reg_number,
+        encrypted_refresh_token=encrypted_secret,
+    )
+
+    # 30 days expiration if remember_me is True (2,592,000 seconds)
+    expires_in = 2592000 if body.remember_me else 86400
+
+    return AuthResponse(
+        access_token=session_token,
+        token_type="Bearer",
+        expires_in=expires_in,
+        user_id=user.id,
+        student=StudentInfo(
+            name=user.name,
+            reg_number=user.reg_number,
+        ),
+    )
 
 
 @app.post("/auth/direct-token", response_model=AuthResponse, tags=["Authentication"])

@@ -15,6 +15,13 @@ class DirectTokenRequest(BaseModel):
     token: str
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    name: Optional[str] = None
+    remember_me: bool = True
+
+
 class StudentInfo(BaseModel):
     name: str
     reg_number: str

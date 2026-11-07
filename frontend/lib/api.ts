@@ -153,6 +153,36 @@ export async function loginWithEsproToken(token: string) {
 }
 
 /**
+ * Direct login with Student Register Number / Email & Password
+ * Single sign-on for mobile phones with persistent device storage.
+ */
+export async function loginWithCredentials(
+  username: string,
+  password: string,
+  name?: string,
+  rememberMe: boolean = true
+) {
+  const data = await request<{
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    user_id: string;
+    student: StudentInfo;
+  }>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      username,
+      password,
+      name,
+      remember_me: rememberMe,
+    }),
+  });
+
+  setAuthSession(data.access_token, data.user_id, data.student, data.expires_in);
+  return data;
+}
+
+/**
  * Fetch attendance data on demand
  */
 export async function fetchAttendance(): Promise<AttendanceData> {

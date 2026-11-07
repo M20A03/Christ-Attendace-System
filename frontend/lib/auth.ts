@@ -39,16 +39,21 @@ function notifyListeners() {
   listeners.forEach((fn) => fn(inMemorySession));
 }
 
-export function setAuthSession(token: string, userId: string, student: StudentInfo, expiresIn: number = 300) {
+export function setAuthSession(
+  token: string,
+  userId: string,
+  student: StudentInfo,
+  expiresIn: number = 2592000
+) {
   inMemorySession = {
     accessToken: token,
     userId,
     student,
     expiresAt: Date.now() + expiresIn * 1000,
   };
-  // Also store basic non-sensitive student profile in sessionStorage for seamless page refreshes in demo/dev
   if (typeof window !== "undefined") {
     try {
+      localStorage.setItem("cu_auth_session", JSON.stringify(inMemorySession));
       sessionStorage.setItem("cu_user_id", userId);
       sessionStorage.setItem("cu_student", JSON.stringify(student));
     } catch {}
@@ -57,18 +62,34 @@ export function setAuthSession(token: string, userId: string, student: StudentIn
 }
 
 export function getAuthSession(): AuthSession {
-  // If in-memory session is empty, check if we have a cached user id from current browser session
-  if (!inMemorySession.userId && typeof window !== "undefined") {
+  // If in-memory session is empty, check localStorage for persistent login across phone app opens
+  if (!inMemorySession.accessToken && typeof window !== "undefined") {
     try {
-      const storedUserId = sessionStorage.getItem("cu_user_id");
-      const storedStudent = sessionStorage.getItem("cu_student");
-      if (storedUserId && storedStudent) {
-        inMemorySession.userId = storedUserId;
-        inMemorySession.student = JSON.parse(storedStudent);
+      const stored = localStorage.getItem("cu_auth_session");
+      if (stored) {
+        const parsed: AuthSession = JSON.parse(stored);
+        if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
+          inMemorySession = parsed;
+        } else {
+          localStorage.removeItem("cu_auth_session");
+        }
+      } else {
+        // Fallback to legacy sessionStorage if any
+        const storedUserId = sessionStorage.getItem("cu_user_id");
+        const storedStudent = sessionStorage.getItem("cu_student");
+        if (storedUserId && storedStudent) {
+          inMemorySession.userId = storedUserId;
+          inMemorySession.student = JSON.parse(storedStudent);
+        }
       }
     } catch {}
   }
   return inMemorySession;
+}
+
+export function hasActiveSession(): boolean {
+  const session = getAuthSession();
+  return !!(session.accessToken && session.userId);
 }
 
 export function clearAuthSession() {
@@ -80,6 +101,7 @@ export function clearAuthSession() {
   };
   if (typeof window !== "undefined") {
     try {
+      localStorage.removeItem("cu_auth_session");
       sessionStorage.removeItem("cu_user_id");
       sessionStorage.removeItem("cu_student");
       sessionStorage.removeItem("pkce_code_verifier");
