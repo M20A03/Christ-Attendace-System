@@ -24,3 +24,4 @@ Keep border radiuses strictly nested and proportional:
 ## 3. Empty & Error State Dignity
 - Empty states must never feel like bugs or broken code.
 - Always include an illustrated icon, a clear non-accusatory explanation, and a high-contrast recovery button.
+

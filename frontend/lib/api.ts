@@ -134,6 +134,25 @@ export async function exchangeAuthCode(
 }
 
 /**
+ * Direct login with active Christ ESPRO/CUE access token
+ */
+export async function loginWithEsproToken(token: string) {
+  const data = await request<{
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    user_id: string;
+    student: StudentInfo;
+  }>("/auth/direct-token", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+
+  setAuthSession(data.access_token, data.user_id, data.student, data.expires_in);
+  return data;
+}
+
+/**
  * Fetch attendance data on demand
  */
 export async function fetchAttendance(): Promise<AttendanceData> {

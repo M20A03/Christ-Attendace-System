@@ -24,6 +24,7 @@ import auth
 import portal
 from models import (
     TokenExchangeRequest,
+    DirectTokenRequest,
     AuthResponse,
     StudentInfo,
     AttendanceResponse,
@@ -88,6 +89,46 @@ async def health_check():
         "service": "Christ Attendance Viewer API",
         "version": "1.0.0",
     }
+
+
+@app.post("/auth/direct-token", response_model=AuthResponse, tags=["Authentication"])
+async def direct_token_login(body: DirectTokenRequest):
+    """
+    Connects with an active ESPRO/CUE access token.
+    Decodes token claims, encrypts token at rest, and initializes student session.
+    """
+    token = body.token.strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+
+    claims = auth.decode_jwt_payload(token)
+    import uuid, time
+    keycloak_sub = claims.get("sub") or f"espro_{uuid.uuid4().hex[:8]}"
+    student_name = claims.get("name") or claims.get("given_name") or "Christ Student"
+    reg_number = claims.get("preferred_username") or claims.get("username") or claims.get("email") or "2347101"
+
+    # Store token encrypted
+    encrypted_token = crypto.encrypt_token(token)
+    user = await db.upsert_user_and_session(
+        keycloak_sub=keycloak_sub,
+        name=student_name,
+        reg_number=reg_number,
+        encrypted_refresh_token=encrypted_token,
+    )
+
+    exp = claims.get("exp")
+    expires_in = max(300, int(exp - time.time())) if exp else 3600
+
+    return AuthResponse(
+        access_token=token,
+        token_type="Bearer",
+        expires_in=expires_in,
+        user_id=user.id,
+        student=StudentInfo(
+            name=user.name,
+            reg_number=user.reg_number,
+        ),
+    )
 
 
 @app.post("/auth/exchange", response_model=AuthResponse, tags=["Authentication"])

@@ -37,3 +37,4 @@ Every interactive element must explicitly define:
   - Body & Labels: 12px – 14px, font-normal / medium
   - Caption & Metadata: 11px, font-mono / font-medium, muted contrast
 - Keep high WCAG AA contrast (minimum 4.5:1 for normal text, 3:1 for large text).
+

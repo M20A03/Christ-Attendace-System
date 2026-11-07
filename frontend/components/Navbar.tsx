@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { StudentInfo } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
-import { LogOut, RefreshCw, Moon, Sun, ShieldCheck } from "lucide-react";
+import { LogOut, RefreshCw, Moon, Sun, ShieldCheck, KeyRound } from "lucide-react";
 
 interface NavbarProps {
   student?: StudentInfo | null;
   lastUpdated?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  onOpenTokenModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   lastUpdated,
   onRefresh,
   isRefreshing = false,
+  onOpenTokenModal,
 }) => {
   const [isDark, setIsDark] = useState<boolean>(false);
 
@@ -69,8 +71,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right actions: Refresh, Theme Toggle, Logout */}
+        {/* Right actions: Refresh, Token, Theme Toggle, Logout */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {onOpenTokenModal && (
+            <button
+              onClick={onOpenTokenModal}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+              title="Connect or update live ESPRO token"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden md:inline">ESPRO Token</span>
+            </button>
+          )}
+
           {onRefresh && (
             <button
               onClick={onRefresh}

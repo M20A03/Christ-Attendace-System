@@ -8,9 +8,10 @@ import { AttendanceRing } from "@/components/AttendanceRing";
 import { SubjectCard } from "@/components/SubjectCard";
 import { TodayClasses } from "@/components/TodayClasses";
 import { SkeletonHeroRing, SkeletonSubjectCard, SkeletonList } from "@/components/SkeletonLoader";
+import { EsproTokenModal } from "@/components/EsproTokenModal";
 import { fetchAttendance, AttendanceData, ApiError } from "@/lib/api";
 import { getAuthSession } from "@/lib/auth";
-import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen } from "lucide-react";
+import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen, KeyRound } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
   const loadAttendance = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -78,6 +80,7 @@ export default function DashboardPage() {
         student={data?.student || getAuthSession().student}
         onRefresh={() => loadAttendance(true)}
         isRefreshing={refreshing}
+        onOpenTokenModal={() => setIsTokenModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -198,6 +201,15 @@ export default function DashboardPage() {
 
       {/* Bottom Tab Navigation */}
       <BottomNav />
+
+      {/* Live ESPRO Token Modal */}
+      <EsproTokenModal
+        isOpen={isTokenModalOpen}
+        onClose={() => {
+          setIsTokenModalOpen(false);
+          loadAttendance(true);
+        }}
+      />
     </div>
   );
 }

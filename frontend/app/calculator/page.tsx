@@ -17,7 +17,6 @@ import {
   AlertCircle,
   Plus,
   Minus,
-  Sparkles,
 } from "lucide-react";
 
 export default function CalculatorPage() {

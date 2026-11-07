@@ -36,3 +36,4 @@ transition: { type: "spring", stiffness: 260, damping: 20 }
 - Button press: `active:scale-[0.98]` with `transition-transform duration-100`.
 - Icon toggle: slight rotation (`rotate-12` or `rotate-180` for refresh icons).
 - Card hover: `translate-y-[-2px]` with a gentle shadow step (`hover:shadow-md`).
+

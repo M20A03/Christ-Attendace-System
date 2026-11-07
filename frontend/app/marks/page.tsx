@@ -12,7 +12,6 @@ import {
   BarChart3,
   AlertCircle,
   FileText,
-  Sparkles,
 } from "lucide-react";
 import {
   BarChart,
@@ -86,32 +85,29 @@ export default function MarksPage() {
         )}
 
         {/* GPA Summary Card */}
-        <section className="bg-gradient-to-tr from-slate-900 via-slate-850 to-slate-900 dark:from-slate-900 dark:to-slate-950 text-white rounded-3xl p-6 border border-slate-800 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
+        <section className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 shadow-sm relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
-                <Sparkles className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold mb-2">
                 <span>{data?.semester || "Current Semester"}</span>
               </div>
-              <h2 className="text-2xl font-black tracking-tight">Academic Performance</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Academic Performance</h2>
               <p className="text-xs text-slate-400 mt-1">
                 Continuous Internal Assessment (CIA) & Semester Marks
               </p>
             </div>
 
-            <div className="flex items-center gap-4 bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60">
+            <div className="flex items-center gap-4 bg-slate-800/80 p-4 rounded-xl border border-slate-700/60">
               <div className="text-right">
                 <span className="text-[11px] uppercase tracking-wider text-slate-400 font-mono">
                   Cumulative GPA
                 </span>
-                <p className="text-3xl font-black text-emerald-400">
+                <p className="text-2xl sm:text-3xl font-black text-emerald-400">
                   {data?.overall_gpa ? data.overall_gpa.toFixed(2) : "8.72"}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Award className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-lg bg-slate-700 text-emerald-400 flex items-center justify-center">
+                <Award className="w-5 h-5" />
               </div>
             </div>
           </div>

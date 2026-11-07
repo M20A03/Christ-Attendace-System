@@ -11,6 +11,10 @@ class TokenExchangeRequest(BaseModel):
     redirect_uri: Optional[str] = None
 
 
+class DirectTokenRequest(BaseModel):
+    token: str
+
+
 class StudentInfo(BaseModel):
     name: str
     reg_number: str

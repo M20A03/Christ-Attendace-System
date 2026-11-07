@@ -26,3 +26,4 @@ Use this skill to elevate any interface from looking "AI-generated" to feeling c
   - ❌ *"Attendance calculation algorithm returned code 0."*
   - ✅ *"You're 2 classes ahead of your 85% goal. Safe to skip."*
 - State clear next steps whenever an error or warning appears.
+
