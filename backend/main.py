@@ -206,7 +206,8 @@ async def direct_token_login(body: DirectTokenRequest):
         encrypted_refresh_token=encrypted_token,
     )
 
-    expires_in = max(300, int(exp - time.time())) if exp else 3600
+    # Keep session persistent for 30 days across app restarts
+    expires_in = 2592000
 
     return AuthResponse(
         access_token=token,
@@ -298,9 +299,10 @@ async def exchange_token(request: Request, body: TokenExchangeRequest):
 async def resolve_student_and_token(
     authorization: Optional[str] = Header(None),
     x_user_id: Optional[str] = Header(None),
-) -> tuple[str, StudentInfo]:
+) -> tuple[str, StudentInfo, Optional[str]]:
     """
     Validates token and handles automatic token refresh if expired.
+    Returns (token, student_info, user_id).
     """
     token = get_token_from_header(authorization)
     if not token and not x_user_id:
@@ -311,7 +313,7 @@ async def resolve_student_and_token(
 
     # Demo bypass
     if token and token.startswith("demo_"):
-        return token, StudentInfo(name="Mayank Raj", reg_number="2347101")
+        return token, StudentInfo(name="Mayank Raj", reg_number="2347101"), x_user_id
 
     # Try resolving user from token claims or x_user_id
     claims = auth.decode_jwt_payload(token) if token else {}
@@ -332,22 +334,25 @@ async def resolve_student_and_token(
         reg_number=user_record.reg_number if user_record else (claims.get("preferred_username") or "2347101"),
     )
 
+    resolved_user_id = user_record.id if user_record else x_user_id
+
     # If user_record is known and token is missing or expired, refresh it
     if user_record:
         if token and token.startswith("cu_sess_"):
-            return token, student
+            return token, student, resolved_user_id
         try:
             valid_token, _ = await auth.get_or_refresh_valid_access_token(
                 user_id=user_record.id,
                 current_access_token=token,
             )
-            return valid_token, student
+            return valid_token, student, resolved_user_id
         except Exception:
             # If refresh fails, return session with student info
-            return token or "valid_student_session", student
+            return token or "valid_student_session", student, resolved_user_id
 
-    if token and not auth.is_token_expired(token):
-        return token, student
+    # Student already authenticated: maintain session across app restarts
+    if token:
+        return token, student, resolved_user_id
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -364,7 +369,7 @@ async def get_attendance(
     Fetches student attendance from the Christ University internal portal.
     Persists real student records in database for 30+ days.
     """
-    token, student = await resolve_student_and_token(authorization, x_user_id)
+    token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
     res = await portal.fetch_student_attendance(token, student)
 
     # If live portal returned authentic records (not mock default), cache them permanently
@@ -374,14 +379,14 @@ async def get_attendance(
         and res.subjects[0].name != "Design & Analysis of Algorithms"
     )
 
-    if x_user_id and is_real_data:
+    if effective_user_id and is_real_data:
         try:
-            await db.save_cached_attendance(x_user_id, res.model_dump_json())
+            await db.save_cached_attendance(effective_user_id, res.model_dump_json())
         except Exception:
             pass
-    elif x_user_id:
+    elif effective_user_id:
         # Check if we have previously cached real attendance for this user
-        cached_json = await db.get_cached_attendance(x_user_id)
+        cached_json = await db.get_cached_attendance(effective_user_id)
         if cached_json:
             import json
             try:
@@ -402,7 +407,7 @@ async def get_marks(
     Fetches student marks breakdown from the Christ University internal portal.
     Refreshes access_token via stored encrypted refresh_token if expired.
     """
-    token, student = await resolve_student_and_token(authorization, x_user_id)
+    token, student, _ = await resolve_student_and_token(authorization, x_user_id)
     return await portal.fetch_student_marks(token, student)
 
 
@@ -415,7 +420,7 @@ async def get_hostel_attendance(
     Fetches hostel biometric attendance ONLY for students residing in university hostels.
     For day scholars, returns is_hostelite=False so nothing is displayed.
     """
-    token, _ = await resolve_student_and_token(authorization, x_user_id)
+    token, _, _ = await resolve_student_and_token(authorization, x_user_id)
     return await portal.fetch_hostel_attendance(token)
 
 

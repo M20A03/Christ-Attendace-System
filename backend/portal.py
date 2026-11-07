@@ -3,8 +3,14 @@ Client and parser for Christ University internal portal attendance and marks API
 """
 import os
 import datetime
+import logging
 from typing import Dict, Any, List, Optional
 import httpx
+
+logger = logging.getLogger("portal")
+
+PORTAL_API_BASE = os.getenv("PORTAL_API_BASE", "https://espro.christuniversity.in:84").rstrip("/")
+
 from models import (
     AttendanceResponse,
     MarksResponse,
@@ -15,8 +21,6 @@ from models import (
     HostelBiometricInfo,
     HostelBiometricPunch,
 )
-
-PORTAL_API_BASE = os.getenv("PORTAL_API_BASE", "https://espro.christuniversity.in:84")
 
 # Standard mock dataset representing authentic Christ University BTech/BCA/MCA curriculum
 MOCK_ATTENDANCE = {
@@ -289,14 +293,9 @@ def get_mock_marks(student: StudentInfo) -> MarksResponse:
 async def fetch_student_attendance(access_token: str, student: StudentInfo) -> AttendanceResponse:
     """
     Calls Christ University internal ESPro APIs on port 84 to retrieve authentic live attendance.
-    Flow:
-      1. POST ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters
-      2. Extract active current sessionId
-      3. POST ClassRoomAttendanceServices/Student/StudentAttendance/getAttendanceCount?sessionId={sessionId}
-      4. POST ClassRoomAttendanceServices/Student/StudentAttendance/getCourseWiseAttendance?sessionId={sessionId}
+    Supports both ClassRoomAttendanceServices and KPServiceNew based on student semester configuration.
     """
-    # If the token is not a live JWT or Bearer token (e.g. internal session), return personalized dataset
-    if not access_token or access_token.startswith("cu_sess_") or access_token.startswith("demo_"):
+    if not access_token or access_token.startswith("demo_"):
         return get_mock_attendance(student)
 
     headers = {
@@ -309,10 +308,12 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
-            # Step 1: Get student active semester session
+        async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
+            # Step 1: Get student active semester sessions
             sem_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters"
+            logger.info("Calling CUE portal getStudentSemesters: %s", sem_url)
             sem_res = await client.post(sem_url, json={}, headers=headers)
+            logger.info("getStudentSemesters response status: %d", sem_res.status_code)
             
             if sem_res.status_code == 200:
                 sem_data = sem_res.json()
@@ -323,44 +324,112 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
                 if isinstance(sessions, list) and sessions:
                     current_sess = next((s for s in sessions if isinstance(s, dict) and s.get("isCurrent")), sessions[0])
                 
-                session_id = current_sess.get("sessionId") if current_sess else None
-                
-                overall_percentage = None
-                if session_id:
-                    # Step 2: Fetch overall attendance count
-                    count_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getAttendanceCount?sessionId={session_id}"
-                    count_res = await client.post(count_url, json={}, headers=headers)
-                    if count_res.status_code == 200:
-                        count_data = count_res.json()
-                        overall_percentage = count_data.get("overallPercentage") or count_data.get("overall")
+                if current_sess and isinstance(current_sess, dict):
+                    session_id = current_sess.get("sessionId")
+                    term_no = current_sess.get("termNumber") or current_sess.get("semester") or current_sess.get("termNo")
+                    call_kp = current_sess.get("callKpServiceNew", False)
 
-                    # Step 3: Fetch course-wise attendance
-                    courses_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getCourseWiseAttendance?sessionId={session_id}"
-                    courses_res = await client.post(courses_url, json={}, headers=headers)
-                    if courses_res.status_code == 200:
-                        courses_data = courses_res.json()
-                        return parse_portal_attendance_data(courses_data, student, overall_percentage)
+                    logger.info("Current semester: sessionId=%s, termNo=%s, callKpServiceNew=%s", session_id, term_no, call_kp)
 
-            # Fallback to KPServiceNew if ClassRoomAttendanceServices is not used for this course
-            kp_url = f"{PORTAL_API_BASE}/KPServiceNew/rest/getAttendanceCBCS"
-            kp_res = await client.post(kp_url, json={}, headers=headers)
-            if kp_res.status_code == 200:
-                return parse_portal_attendance_data(kp_res.json(), student)
+                    overall_percentage = None
 
-    except Exception:
-        pass
+                    # If KPServiceNew is flagged for this program
+                    if call_kp and term_no:
+                        kp_term_url = f"{PORTAL_API_BASE}/KPServiceNew/rest/getAttendanceDetailsBySemester?termNo={term_no}"
+                        kp_term_res = await client.post(kp_term_url, json={}, headers=headers)
+                        if kp_term_res.status_code == 200:
+                            logger.info("Successfully fetched attendance from KPServiceNew term URL")
+                            return parse_portal_attendance_data(kp_term_res.json(), student)
+
+                    if session_id:
+                        # Step 2: Fetch overall attendance count
+                        count_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getAttendanceCount?sessionId={session_id}"
+                        count_res = await client.post(count_url, json={}, headers=headers)
+                        if count_res.status_code == 200:
+                            count_data = count_res.json()
+                            overall_percentage = count_data.get("overallPercentage") or count_data.get("overall")
+
+                        # Step 3: Fetch course-wise attendance
+                        courses_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getCourseWiseAttendance?sessionId={session_id}"
+                        courses_res = await client.post(courses_url, json={}, headers=headers)
+                        if courses_res.status_code == 200:
+                            courses_data = courses_res.json()
+                            if courses_data:
+                                logger.info("Successfully fetched course-wise attendance from ClassRoomAttendanceServices")
+                                return parse_portal_attendance_data(courses_data, student, overall_percentage)
+
+            # Step 4: Fallback to general KPServiceNew endpoints
+            kp_urls = [
+                f"{PORTAL_API_BASE}/KPServiceNew/rest/getAttendanceCBCS",
+                f"{PORTAL_API_BASE}/KPServiceNew/rest/getAttendanceDetailsBySemester?termNo=1",
+            ]
+            for fallback_url in kp_urls:
+                try:
+                    fallback_res = await client.post(fallback_url, json={}, headers=headers)
+                    if fallback_res.status_code == 200 and fallback_res.json():
+                        logger.info("Successfully fetched attendance from fallback: %s", fallback_url)
+                        return parse_portal_attendance_data(fallback_res.json(), student)
+                except Exception as fb_err:
+                    logger.warning("Fallback %s failed: %s", fallback_url, fb_err)
+
+    except Exception as e:
+        logger.error("Exception fetching real attendance from portal: %s", e)
 
     return get_mock_attendance(student)
 
 
 async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksResponse:
     """
-    Calls Christ University portal internal API to retrieve marks data.
+    Calls Christ University internal ExamServices API to retrieve authentic live CIA marks.
+    Flow:
+      1. POST ExamServices/ExamCiaResultView/getStudentClasses
+      2. Extract active classId
+      3. POST ExamServices/ExamCiaResultView/getExamCiaResultView?classId={classId}
     """
-    if not access_token or access_token.startswith("cu_sess_") or access_token.startswith("demo_"):
+    if not access_token or access_token.startswith("demo_"):
         return get_mock_marks(student)
 
-    # Return student marks
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Origin": "https://cue.christuniversity.in",
+        "Referer": "https://cue.christuniversity.in/",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            classes_url = f"{PORTAL_API_BASE}/ExamServices/ExamCiaResultView/getStudentClasses"
+            classes_res = await client.post(classes_url, json={}, headers=headers)
+            if classes_res.status_code == 200:
+                classes_data = classes_res.json()
+                classes_list = classes_data if isinstance(classes_data, list) else classes_data.get("data", [])
+                if classes_list:
+                    class_id = classes_list[0].get("classId") or classes_list[0].get("id")
+                    if class_id:
+                        cia_url = f"{PORTAL_API_BASE}/ExamServices/ExamCiaResultView/getExamCiaResultView?classId={class_id}"
+                        cia_res = await client.post(cia_url, json={}, headers=headers)
+                        if cia_res.status_code == 200:
+                            cia_json = cia_res.json()
+                            items = cia_json if isinstance(cia_json, list) else cia_json.get("data", [])
+                            if items:
+                                marks = []
+                                for it in items:
+                                    marks.append(SubjectMark(
+                                        subject_name=it.get("subjectName") or it.get("courseName") or "Course",
+                                        subject_code=it.get("subjectCode") or it.get("courseCode") or "N/A",
+                                        cia1=it.get("cia1"),
+                                        cia2=it.get("cia2"),
+                                        cia3=it.get("cia3"),
+                                        total=it.get("totalMarks") or it.get("total"),
+                                        max_marks=it.get("maxMarks", 100),
+                                    ))
+                                if marks:
+                                    return MarksResponse(student=student, semester=classes_list[0].get("semesterName", "Current"), marks=marks)
+    except Exception as e:
+        logger.warning("Error fetching CIA marks from portal: %s", e)
+
     return get_mock_marks(student)
 
 

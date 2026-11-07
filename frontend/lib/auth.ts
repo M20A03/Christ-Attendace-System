@@ -68,10 +68,10 @@ export function getAuthSession(): AuthSession {
       const stored = localStorage.getItem("cu_auth_session");
       if (stored) {
         const parsed: AuthSession = JSON.parse(stored);
-        if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
+        if (parsed.accessToken) {
+          // Refresh expiresAt to keep active for 30 days
+          parsed.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
           inMemorySession = parsed;
-        } else {
-          localStorage.removeItem("cu_auth_session");
         }
       } else {
         // Fallback to legacy sessionStorage if any
