@@ -35,6 +35,14 @@ class Session(Base):
     user = relationship("User", back_populates="session")
 
 
+class AttendanceCache(Base):
+    __tablename__ = "attendance_cache"
+
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    data_json = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 def get_database_url() -> str:
     """
     Format DATABASE_URL to use async drivers.
@@ -177,4 +185,28 @@ async def delete_user_session(user_id: str):
         async with session.begin():
             stmt = delete(Session).where(Session.user_id == user_id)
             await session.execute(stmt)
+
+
+async def save_cached_attendance(user_id: str, data_json: str):
+    """Save real attendance records in database for 30+ days persistence."""
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            stmt = select(AttendanceCache).where(AttendanceCache.user_id == user_id)
+            result = await session.execute(stmt)
+            cache = result.scalar_one_or_none()
+            now = datetime.now(timezone.utc)
+            if cache:
+                cache.data_json = data_json
+                cache.updated_at = now
+            else:
+                cache = AttendanceCache(user_id=user_id, data_json=data_json, updated_at=now)
+                session.add(cache)
+
+
+async def get_cached_attendance(user_id: str) -> Optional[str]:
+    """Retrieve persistent real attendance records for user."""
+    async with AsyncSessionLocal() as session:
+        stmt = select(AttendanceCache.data_json).where(AttendanceCache.user_id == user_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 

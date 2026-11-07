@@ -361,10 +361,35 @@ async def get_attendance(
 ):
     """
     Fetches student attendance from the Christ University internal portal.
-    Refreshes access_token via stored encrypted refresh_token if expired.
+    Persists real student records in database for 30+ days.
     """
     token, student = await resolve_student_and_token(authorization, x_user_id)
-    return await portal.fetch_student_attendance(token, student)
+    res = await portal.fetch_student_attendance(token, student)
+
+    # If live portal returned authentic records (not mock default), cache them permanently
+    is_real_data = (
+        res.subjects
+        and len(res.subjects) > 0
+        and res.subjects[0].name != "Design & Analysis of Algorithms"
+    )
+
+    if x_user_id and is_real_data:
+        try:
+            await db.save_cached_attendance(x_user_id, res.model_dump_json())
+        except Exception:
+            pass
+    elif x_user_id:
+        # Check if we have previously cached real attendance for this user
+        cached_json = await db.get_cached_attendance(x_user_id)
+        if cached_json:
+            import json
+            try:
+                cached_dict = json.loads(cached_json)
+                return AttendanceResponse(**cached_dict)
+            except Exception:
+                pass
+
+    return res
 
 
 @app.get("/marks", response_model=MarksResponse, tags=["Portal"])
