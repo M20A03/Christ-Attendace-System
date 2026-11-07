@@ -9,13 +9,14 @@ import { SubjectCard } from "@/components/SubjectCard";
 import { TodayClasses } from "@/components/TodayClasses";
 import { SkeletonHeroRing, SkeletonSubjectCard, SkeletonList } from "@/components/SkeletonLoader";
 import { EsproTokenModal } from "@/components/EsproTokenModal";
-import { fetchAttendance, AttendanceData, ApiError } from "@/lib/api";
+import { fetchAttendance, fetchHostelAttendance, AttendanceData, HostelBiometricInfo, ApiError } from "@/lib/api";
 import { getAuthSession } from "@/lib/auth";
-import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen, KeyRound } from "lucide-react";
+import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen, KeyRound, Building2, Fingerprint } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<AttendanceData | null>(null);
+  const [hostelData, setHostelData] = useState<HostelBiometricInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +32,12 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const result = await fetchAttendance();
-      setData(result);
+      const [attResult, bioResult] = await Promise.all([
+        fetchAttendance(),
+        fetchHostelAttendance().catch(() => ({ is_hostelite: false })),
+      ]);
+      setData(attResult);
+      setHostelData(bioResult);
       setSecondsAgo(0);
     } catch (err: any) {
       if (err instanceof ApiError && err.statusCode === 401) {
@@ -197,6 +202,75 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        {/* Hostel Biometric Attendance (Visible ONLY for Hostel Residents) */}
+        {hostelData?.is_hostelite && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Hostel Biometric Attendance
+                </h3>
+              </div>
+              {hostelData.biometric_id && (
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  ID: {hostelData.biometric_id}
+                </span>
+              )}
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+                    {hostelData.hostel_name || "Christ University Student Hostel"}
+                  </h4>
+                  {hostelData.last_punch && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Last punch: {hostelData.last_punch}
+                    </p>
+                  )}
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Fingerprint className="w-4 h-4" />
+                </div>
+              </div>
+
+              {hostelData.punches && hostelData.punches.length > 0 ? (
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+                    Recent Check-Ins & Check-Outs
+                  </span>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {hostelData.punches.slice(0, 5).map((punch, idx) => (
+                      <div key={idx} className="py-2 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              punch.punch_type === "IN" ? "bg-emerald-500" : "bg-amber-500"
+                            }`}
+                          />
+                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                            {punch.punch_type || "IN"}
+                          </span>
+                          <span className="text-slate-400">{punch.date}</span>
+                        </div>
+                        <span className="font-mono text-slate-600 dark:text-slate-300">
+                          {punch.punch_time || punch.status || "Recorded"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  Biometric registration active. Punch records update during hostel check-in hours.
+                </p>
+              )}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Bottom Tab Navigation */}

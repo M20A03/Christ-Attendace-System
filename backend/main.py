@@ -31,6 +31,7 @@ from models import (
     AttendanceResponse,
     MarksResponse,
     LogoutRequest,
+    HostelBiometricInfo,
 )
 
 # Rate limiter setup (5 requests per minute per IP for exchange endpoint)
@@ -403,6 +404,19 @@ async def get_marks(
     """
     token, student = await resolve_student_and_token(authorization, x_user_id)
     return await portal.fetch_student_marks(token, student)
+
+
+@app.get("/hostel-attendance", response_model=HostelBiometricInfo, tags=["Portal"])
+async def get_hostel_attendance(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Fetches hostel biometric attendance ONLY for students residing in university hostels.
+    For day scholars, returns is_hostelite=False so nothing is displayed.
+    """
+    token, _ = await resolve_student_and_token(authorization, x_user_id)
+    return await portal.fetch_hostel_attendance(token)
 
 
 @app.post("/auth/logout", tags=["Authentication"])

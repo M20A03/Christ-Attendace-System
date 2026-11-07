@@ -77,6 +77,21 @@ class MarksResponse(BaseModel):
     marks: List[SubjectMark]
 
 
+class HostelBiometricPunch(BaseModel):
+    date: str
+    punch_time: Optional[str] = None
+    punch_type: Optional[str] = None  # "IN" or "OUT"
+    status: Optional[str] = "Present"
+
+
+class HostelBiometricInfo(BaseModel):
+    is_hostelite: bool = False
+    biometric_id: Optional[str] = None
+    hostel_name: Optional[str] = None
+    last_punch: Optional[str] = None
+    punches: List[HostelBiometricPunch] = []
+
+
 class LogoutRequest(BaseModel):
     user_id: Optional[str] = None
 

@@ -189,11 +189,37 @@ export async function fetchAttendance(): Promise<AttendanceData> {
   return request<AttendanceData>("/attendance", { method: "GET" });
 }
 
+export interface HostelPunch {
+  date: string;
+  punch_time?: string;
+  punch_type?: string;
+  status?: string;
+}
+
+export interface HostelBiometricInfo {
+  is_hostelite: boolean;
+  biometric_id?: string;
+  hostel_name?: string;
+  last_punch?: string;
+  punches?: HostelPunch[];
+}
+
 /**
  * Fetch marks breakdown
  */
 export async function fetchMarks(): Promise<MarksData> {
   return request<MarksData>("/marks", { method: "GET" });
+}
+
+/**
+ * Fetch hostel biometric attendance (only for hostel students)
+ */
+export async function fetchHostelAttendance(): Promise<HostelBiometricInfo> {
+  try {
+    return await request<HostelBiometricInfo>("/hostel-attendance", { method: "GET" });
+  } catch {
+    return { is_hostelite: false };
+  }
 }
 
 /**

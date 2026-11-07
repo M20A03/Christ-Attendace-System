@@ -5,7 +5,16 @@ import os
 import datetime
 from typing import Dict, Any, List, Optional
 import httpx
-from models import AttendanceResponse, MarksResponse, StudentInfo, SubjectAttendance, TodayClass, SubjectMark
+from models import (
+    AttendanceResponse,
+    MarksResponse,
+    StudentInfo,
+    SubjectAttendance,
+    TodayClass,
+    SubjectMark,
+    HostelBiometricInfo,
+    HostelBiometricPunch,
+)
 
 PORTAL_API_BASE = os.getenv("PORTAL_API_BASE", "https://espro.christuniversity.in:84")
 
@@ -353,4 +362,70 @@ async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksR
 
     # Return student marks
     return get_mock_marks(student)
+
+
+async def fetch_hostel_attendance(access_token: str) -> HostelBiometricInfo:
+    """
+    Checks if student is a hostelite via Christ University KPServiceNew biometric APIs.
+    If is_valid == 1, fetches their biometric ID and punch history.
+    If the student is not a hostelite (is_valid == 0), returns is_hostelite=False.
+    """
+    if not access_token or access_token.startswith("cu_sess_") or access_token.startswith("demo_"):
+        return HostelBiometricInfo(is_hostelite=False)
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Origin": "https://cue.christuniversity.in",
+        "Referer": "https://cue.christuniversity.in/",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0, verify=False) as client:
+            # Step 1: Check if student has valid hostel biometric registration
+            bio_id_url = f"{PORTAL_API_BASE}/KPServiceNew/rest/getHostelBiometricId"
+            id_res = await client.post(bio_id_url, json={}, headers=headers)
+            
+            if id_res.status_code == 200:
+                id_data = id_res.json()
+                items = id_data if isinstance(id_data, list) else [id_data]
+                if items and isinstance(items[0], dict):
+                    first = items[0]
+                    if first.get("is_valid") == 1 or first.get("is_hostelite"):
+                        biometric_id = str(first.get("biometric_id") or first.get("biometricId") or "")
+                        hostel_name = first.get("hostel_name") or first.get("hostelName") or "Christ University Hostel"
+                        
+                        # Step 2: Fetch detailed punches
+                        det_url = f"{PORTAL_API_BASE}/KPServiceNew/rest/getHostelBiometricDetails"
+                        det_res = await client.post(det_url, json={}, headers=headers)
+                        punches = []
+                        last_punch = None
+                        if det_res.status_code == 200:
+                            det_data = det_res.json()
+                            det_list = det_data if isinstance(det_data, list) else det_data.get("data", [])
+                            for p in det_list:
+                                if isinstance(p, dict):
+                                    punch = HostelBiometricPunch(
+                                        date=str(p.get("date") or p.get("punchDate") or "Today"),
+                                        punch_time=p.get("time") or p.get("punchTime"),
+                                        punch_type=p.get("type") or p.get("punchType", "IN"),
+                                        status=p.get("status", "Present"),
+                                    )
+                                    punches.append(punch)
+                            if punches:
+                                last_punch = f"{punches[0].date} at {punches[0].punch_time or ''}"
+
+                        return HostelBiometricInfo(
+                            is_hostelite=True,
+                            biometric_id=biometric_id,
+                            hostel_name=hostel_name,
+                            last_punch=last_punch,
+                            punches=punches,
+                        )
+    except Exception:
+        pass
+
+    return HostelBiometricInfo(is_hostelite=False)
 
