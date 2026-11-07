@@ -3,7 +3,7 @@ Client and parser for Christ University internal portal attendance and marks API
 """
 import os
 import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import httpx
 from models import AttendanceResponse, MarksResponse, StudentInfo, SubjectAttendance, TodayClass, SubjectMark
 
