@@ -126,8 +126,37 @@ export default function LandingPage() {
           Enter your credentials once. Your phone stays securely logged in so you never have to sign in again.
         </p>
 
-        {/* Primary Login Card */}
+        {/* Mode Selector */}
         <div className="w-full mt-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
+            <KeyRound className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Want 100% Real University Data?
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Christ University protects logins with Cloudflare Turnstile bot verification. Connect your live CUE session token once to pull your authentic courses and attendance directly from ESPro port 84.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsTokenModalOpen(true)}
+                className="mt-2.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <span>Connect Live ESPRO Session (Real Data)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex items-center justify-center my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+            </div>
+            <div className="relative px-3 bg-white dark:bg-slate-900 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Or Sign In with Student ID
+            </div>
+          </div>
+
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
