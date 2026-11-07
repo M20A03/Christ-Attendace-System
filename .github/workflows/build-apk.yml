@@ -59,7 +59,12 @@ jobs:
 
       - name: Build Android Debug APK
         working-directory: frontend/android
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon 2>&1 | tee /tmp/gradle.log
+        run: |
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon > /tmp/gradle.log 2>&1 || {
+            echo "❌ GRADLE COMPILATION FAILED:"
+            tail -n 100 /tmp/gradle.log
+            exit 1
+          }
 
       - name: Commit Log If Failed
         if: failure()
@@ -67,10 +72,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B debug-log
-          cp /tmp/gradle.log ./gradle.log
+          cp /tmp/gradle.log ./gradle.log || true
           git add gradle.log
-          git commit -m "add gradle log"
-          git push -f origin debug-log
+          git commit -m "add gradle log" || true
+          git push -f origin debug-log || true
 
       - name: Prepare APK Output
         run: |
