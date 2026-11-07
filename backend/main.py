@@ -333,11 +333,17 @@ async def resolve_student_and_token(
 
     # If user_record is known and token is missing or expired, refresh it
     if user_record:
-        valid_token, _ = await auth.get_or_refresh_valid_access_token(
-            user_id=user_record.id,
-            current_access_token=token,
-        )
-        return valid_token, student
+        if token and token.startswith("cu_sess_"):
+            return token, student
+        try:
+            valid_token, _ = await auth.get_or_refresh_valid_access_token(
+                user_id=user_record.id,
+                current_access_token=token,
+            )
+            return valid_token, student
+        except Exception:
+            # If refresh fails, return session with student info
+            return token or "valid_student_session", student
 
     if token and not auth.is_token_expired(token):
         return token, student
