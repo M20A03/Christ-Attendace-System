@@ -119,3 +119,4 @@ public class CUEAuthPlugin extends Plugin {
         });
     }
 }
+

@@ -31,9 +31,6 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm ci
