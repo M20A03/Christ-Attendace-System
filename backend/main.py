@@ -97,14 +97,44 @@ async def direct_token_login(body: DirectTokenRequest):
     Connects with an active ESPRO/CUE access token.
     Decodes token claims, encrypts token at rest, and initializes student session.
     """
-    token = body.token.strip()
-    if token.lower().startswith("bearer "):
-        token = token[7:].strip()
+    import json
+    import time
+    import uuid
+
+    raw_token = body.token.strip()
+    
+    # Strip wrapping quotes if user copied string with quotes
+    if (raw_token.startswith('"') and raw_token.endswith('"')) or (raw_token.startswith("'") and raw_token.endswith("'")):
+        raw_token = raw_token[1:-1].strip()
+    
+    # Check if pasted payload was JSON
+    if raw_token.startswith("{"):
+        try:
+            parsed = json.loads(raw_token)
+            raw_token = parsed.get("access_token") or parsed.get("token") or parsed.get("id_token") or raw_token
+        except Exception:
+            pass
+
+    if raw_token.lower().startswith("bearer "):
+        raw_token = raw_token[7:].strip()
+
+    token = raw_token
 
     claims = auth.decode_jwt_payload(token)
-    import uuid, time
+    
+    # Validate expiration if claims available
+    exp = claims.get("exp")
+    if exp and exp < time.time():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This ESPRO session token has expired. Please refresh cue.christuniversity.in and copy a new token.",
+        )
+
     keycloak_sub = claims.get("sub") or f"espro_{uuid.uuid4().hex[:8]}"
-    student_name = claims.get("name") or claims.get("given_name") or "Christ Student"
+    
+    # Format student name neatly (convert ALL-CAPS to Title Case)
+    raw_name = claims.get("name") or claims.get("given_name") or "Christ Student"
+    student_name = raw_name.title() if raw_name.isupper() else raw_name
     reg_number = claims.get("preferred_username") or claims.get("username") or claims.get("email") or "2347101"
 
     # Store token encrypted
@@ -116,7 +146,6 @@ async def direct_token_login(body: DirectTokenRequest):
         encrypted_refresh_token=encrypted_token,
     )
 
-    exp = claims.get("exp")
     expires_in = max(300, int(exp - time.time())) if exp else 3600
 
     return AuthResponse(

@@ -64,7 +64,7 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
   const colors = getColorScheme();
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-950/5 dark:shadow-black/40 backdrop-blur-md">
+    <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
       <div className="relative flex items-center justify-center">
         <svg
           width={size}

@@ -3,16 +3,19 @@ import "./globals.css";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 export const metadata: Metadata = {
-  title: "Christ Attendance Viewer",
-  description: "Mobile-first attendance & marks dashboard for Christ University students",
+  title: "Christ University • Attendance & Academic Portal",
+  description: "Official student attendance, CIA analytics, and safe skip calculator for Christ University.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "CU Attendance",
   },
   icons: {
-    icon: "/icons/icon-192.png",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/icons/icon-192.png",
   },
 };

@@ -221,21 +221,21 @@ export default function MarksPage() {
                     <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                       <span className="text-[10px] text-slate-400 block uppercase">CIA 1</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {sub.cia1 ?? "—"}
+                        {sub.cia1 !== undefined && sub.cia1 !== null ? sub.cia1 : "-"}
                       </span>
                     </div>
 
                     <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                       <span className="text-[10px] text-slate-400 block uppercase">CIA 2</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {sub.cia2 ?? "—"}
+                        {sub.cia2 !== undefined && sub.cia2 !== null ? sub.cia2 : "-"}
                       </span>
                     </div>
 
                     <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                       <span className="text-[10px] text-slate-400 block uppercase">CIA 3</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {sub.cia3 ?? "—"}
+                        {sub.cia3 !== undefined && sub.cia3 !== null ? sub.cia3 : "-"}
                       </span>
                     </div>
 
@@ -250,7 +250,7 @@ export default function MarksPage() {
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
                     <span className="text-slate-400">Total Score</span>
                     <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">
-                      {sub.total ?? "—"} <span className="text-slate-400 text-xs">/ {sub.max_marks || 100}</span>
+                      {sub.total !== undefined && sub.total !== null ? sub.total : "-"} <span className="text-slate-400 text-xs">/ {sub.max_marks || 100}</span>
                     </span>
                   </div>
                 </div>

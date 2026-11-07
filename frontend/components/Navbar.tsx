@@ -55,15 +55,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Left: Christ University branding & student info */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white font-black text-lg shadow-md shadow-emerald-500/20">
+          <div className="w-9 h-9 rounded-xl bg-[#0f2b5c] text-white flex items-center justify-center font-bold text-xs tracking-wider border border-[#1e3a8a] shadow-sm">
             CU
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-tight">
+              <h1 className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-tight">
                 {student?.name || "Christ Student"}
               </h1>
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
             </div>
             <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
               Reg: {student?.reg_number || "2347101"}
