@@ -29,7 +29,6 @@ export default function LandingPage() {
   // Form fields
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [studentName, setStudentName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
 
   // Check if running on Android/iOS native Capacitor wrapper
@@ -105,7 +104,7 @@ export default function LandingPage() {
       await loginWithCredentials(
         username.trim(),
         password.trim(),
-        studentName.trim() || undefined,
+        undefined,
         rememberMe
       );
       router.push("/dashboard");
