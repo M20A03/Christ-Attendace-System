@@ -23,7 +23,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#090d16",
+  themeColor: "#f8fafc",
 };
 
 export default function RootLayout({
@@ -32,13 +32,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased selection:bg-emerald-500/20 selection:text-emerald-400">
+      <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased selection:bg-emerald-500/20 selection:text-emerald-600">
         {children}
         <PWAInstallPrompt />
         <script

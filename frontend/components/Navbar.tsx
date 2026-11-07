@@ -18,13 +18,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefresh,
   isRefreshing = false,
 }) => {
-  const [isDark, setIsDark] = useState<boolean>(true);
+  const [isDark, setIsDark] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check initial html class
     if (typeof window !== "undefined") {
-      const isDarkMode = document.documentElement.classList.contains("dark");
-      setIsDark(isDarkMode);
+      const storedTheme = localStorage.getItem("theme");
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        setIsDark(true);
+      } else {
+        document.documentElement.classList.remove("dark");
+        setIsDark(false);
+      }
     }
   }, []);
 

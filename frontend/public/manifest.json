@@ -4,8 +4,8 @@
   "description": "Mobile-first attendance and marks dashboard for Christ University students",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#090d16",
-  "theme_color": "#090d16",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [
