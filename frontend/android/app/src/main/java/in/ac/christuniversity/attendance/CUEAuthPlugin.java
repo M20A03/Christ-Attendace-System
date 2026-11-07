@@ -2,11 +2,16 @@ package in.ac.christuniversity.attendance;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
-import android.webkit.ValueCallback;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -18,19 +23,136 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.util.Map;
+
 @CapacitorPlugin(name = "CUEAuth")
 public class CUEAuthPlugin extends Plugin {
+    private static final String TAG = "CUEAuthPlugin";
     private Dialog loginDialog;
-    private Handler pollerHandler;
-    private Runnable pollerRunnable;
+    private Handler scannerHandler;
+    private Runnable scannerRunnable;
+    private boolean tokenFound = false;
+    private PluginCall savedCall;
+
+    public class CUEAuthBridge {
+        @JavascriptInterface
+        public void onToken(String token) {
+            if (token != null && isJwtToken(token)) {
+                Log.d(TAG, "Bridge captured JWT token!");
+                deliverTokenAndClose(token);
+            }
+        }
+    }
+
+    private boolean isJwtToken(String str) {
+        if (str == null) return false;
+        String s = str.trim().replace("\"", "").replace("'", "");
+        return s.length() > 50 && (s.startsWith("eyJ") || (s.contains(".") && s.split("\\.").length >= 3));
+    }
+
+    private synchronized void deliverTokenAndClose(String rawToken) {
+        if (tokenFound) return;
+        tokenFound = true;
+
+        String clean = rawToken.trim().replace("\"", "").replace("'", "");
+        if (clean.toLowerCase().startsWith("bearer ")) {
+            clean = clean.substring(7).trim();
+        }
+
+        final String finalToken = clean;
+        Log.i(TAG, "Delivering token and automatically closing ESPRO portal...");
+
+        if (scannerHandler != null && scannerRunnable != null) {
+            scannerHandler.removeCallbacks(scannerRunnable);
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                if (loginDialog != null && loginDialog.isShowing()) {
+                    loginDialog.dismiss();
+                    loginDialog = null;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error dismissing login dialog", e);
+            }
+
+            if (savedCall != null) {
+                JSObject ret = new JSObject();
+                ret.put("token", finalToken);
+                savedCall.resolve(ret);
+                savedCall = null;
+            }
+        });
+    }
+
+    private static final String INJECT_SCRIPT =
+        "(function() {" +
+        "  function checkToken(val) {" +
+        "    if (typeof val === 'string' && val.length > 50 && val.indexOf('eyJ') === 0) {" +
+        "      try { window.CUEBridge.onToken(val); } catch(e) {}" +
+        "    }" +
+        "  }" +
+        "  function scanStorage() {" +
+        "    try {" +
+        "      for (var i = 0; i < sessionStorage.length; i++) {" +
+        "        var k = sessionStorage.key(i);" +
+        "        checkToken(sessionStorage.getItem(k));" +
+        "      }" +
+        "      for (var j = 0; j < localStorage.length; j++) {" +
+        "        var lk = localStorage.key(j);" +
+        "        checkToken(localStorage.getItem(lk));" +
+        "      }" +
+        "    } catch(e) {}" +
+        "  }" +
+        "  try {" +
+        "    var origSetItem = sessionStorage.setItem;" +
+        "    sessionStorage.setItem = function(k, v) {" +
+        "      checkToken(v);" +
+        "      return origSetItem.apply(this, arguments);" +
+        "    };" +
+        "    var origLocalSet = localStorage.setItem;" +
+        "    localStorage.setItem = function(k, v) {" +
+        "      checkToken(v);" +
+        "      return origLocalSet.apply(this, arguments);" +
+        "    };" +
+        "  } catch(e) {}" +
+        "  try {" +
+        "    var origOpen = XMLHttpRequest.prototype.open;" +
+        "    var origSetHeader = XMLHttpRequest.prototype.setRequestHeader;" +
+        "    XMLHttpRequest.prototype.setRequestHeader = function(h, v) {" +
+        "      if (h && h.toLowerCase() === 'authorization' && v && v.indexOf('Bearer eyJ') === 0) {" +
+        "        checkToken(v.substring(7));" +
+        "      }" +
+        "      return origSetHeader.apply(this, arguments);" +
+        "    };" +
+        "  } catch(e) {}" +
+        "  try {" +
+        "    var origFetch = window.fetch;" +
+        "    window.fetch = function(url, init) {" +
+        "      if (init && init.headers) {" +
+        "        var h = init.headers;" +
+        "        var auth = (h instanceof Headers) ? h.get('authorization') : (h['Authorization'] || h['authorization']);" +
+        "        if (auth && auth.indexOf('Bearer eyJ') === 0) {" +
+        "          checkToken(auth.substring(7));" +
+        "        }" +
+        "      }" +
+        "      return origFetch.apply(this, arguments);" +
+        "    };" +
+        "  } catch(e) {}" +
+        "  scanStorage();" +
+        "  setInterval(scanStorage, 400);" +
+        "})();";
 
     @PluginMethod
     public void openPortalLogin(PluginCall call) {
+        savedCall = call;
+        tokenFound = false;
+
         getActivity().runOnUiThread(() -> {
             try {
                 Context context = getContext();
                 loginDialog = new Dialog(context, android.R.style.Theme_DeviceDefault_Light_NoActionBar_Fullscreen);
-                
+
                 FrameLayout rootLayout = new FrameLayout(context);
                 rootLayout.setLayoutParams(new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -49,62 +171,90 @@ public class CUEAuthPlugin extends Plugin {
                 settings.setDatabaseEnabled(true);
                 settings.setUseWideViewPort(true);
                 settings.setLoadWithOverviewMode(true);
-                settings.setUserAgentString(settings.getUserAgentString() + " Chrome/120.0.0.0 Mobile");
+                settings.setUserAgentString(settings.getUserAgentString() + " Chrome/122.0.0.0 Mobile");
 
                 CookieManager.getInstance().setAcceptCookie(true);
                 CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
-                pollerHandler = new Handler(Looper.getMainLooper());
-                final boolean[] tokenFound = {false};
+                webView.addJavascriptInterface(new CUEAuthBridge(), "CUEBridge");
 
-                pollerRunnable = new Runnable() {
+                scannerHandler = new Handler(Looper.getMainLooper());
+                scannerRunnable = new Runnable() {
                     @Override
                     public void run() {
-                        if (tokenFound[0] || loginDialog == null || !loginDialog.isShowing()) {
+                        if (tokenFound || loginDialog == null || !loginDialog.isShowing()) {
                             return;
                         }
 
-                        // Inspect sessionStorage and localStorage for the Christ University ESPRO JWT token
                         webView.evaluateJavascript(
-                            "(function() { try { return sessionStorage.getItem('token') || localStorage.getItem('token') || ''; } catch(e) { return ''; } })();",
-                            new ValueCallback<String>() {
-                                @Override
-                                public void onReceiveValue(String value) {
-                                    if (value != null && value.length() > 30 && !value.equals("\"\"") && !value.equals("null")) {
-                                        tokenFound[0] = true;
-                                        String cleanToken = value.replace("\"", "").trim();
-                                        if (loginDialog != null && loginDialog.isShowing()) {
-                                            loginDialog.dismiss();
-                                        }
-                                        JSObject ret = new JSObject();
-                                        ret.put("token", cleanToken);
-                                        call.resolve(ret);
-                                        return;
-                                    }
+                            "(function() {" +
+                            "  try {" +
+                            "    for (var i = 0; i < sessionStorage.length; i++) {" +
+                            "      var v = sessionStorage.getItem(sessionStorage.key(i));" +
+                            "      if (v && v.length > 50 && v.indexOf('eyJ') === 0) return v;" +
+                            "    }" +
+                            "    for (var j = 0; j < localStorage.length; j++) {" +
+                            "      var lv = localStorage.getItem(localStorage.key(j));" +
+                            "      if (lv && lv.length > 50 && lv.indexOf('eyJ') === 0) return lv;" +
+                            "    }" +
+                            "  } catch(e) {}" +
+                            "  return '';" +
+                            "})();",
+                            value -> {
+                                if (value != null && isJwtToken(value)) {
+                                    deliverTokenAndClose(value);
                                 }
                             }
                         );
 
-                        if (!tokenFound[0]) {
-                            pollerHandler.postDelayed(this, 1000);
+                        if (!tokenFound) {
+                            scannerHandler.postDelayed(this, 500);
                         }
                     }
                 };
 
                 webView.setWebViewClient(new WebViewClient() {
                     @Override
+                    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                        super.onPageStarted(view, url, favicon);
+                        view.evaluateJavascript(INJECT_SCRIPT, null);
+                        scannerHandler.post(scannerRunnable);
+                    }
+
+                    @Override
                     public void onPageFinished(WebView view, String url) {
                         super.onPageFinished(view, url);
-                        pollerHandler.post(pollerRunnable);
+                        view.evaluateJavascript(INJECT_SCRIPT, null);
+                        scannerHandler.post(scannerRunnable);
+                    }
+
+                    @Override
+                    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                        if (request != null && request.getRequestHeaders() != null) {
+                            Map<String, String> headers = request.getRequestHeaders();
+                            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                                if (entry.getKey().equalsIgnoreCase("Authorization")) {
+                                    String auth = entry.getValue();
+                                    if (auth != null && auth.toLowerCase().startsWith("bearer ")) {
+                                        String candidate = auth.substring(7).trim();
+                                        if (isJwtToken(candidate)) {
+                                            deliverTokenAndClose(candidate);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return super.shouldInterceptRequest(view, request);
                     }
                 });
 
                 loginDialog.setOnDismissListener(dialog -> {
-                    if (pollerHandler != null && pollerRunnable != null) {
-                        pollerHandler.removeCallbacks(pollerRunnable);
+                    if (scannerHandler != null && scannerRunnable != null) {
+                        scannerHandler.removeCallbacks(scannerRunnable);
                     }
-                    if (!tokenFound[0]) {
-                        call.reject("Login cancelled by user");
+                    if (!tokenFound && savedCall != null) {
+                        savedCall.reject("Login cancelled by user");
+                        savedCall = null;
                     }
                 });
 
@@ -114,9 +264,11 @@ public class CUEAuthPlugin extends Plugin {
 
                 webView.loadUrl("https://cue.christuniversity.in");
             } catch (Exception e) {
-                call.reject("Failed to open login dialog: " + e.getMessage());
+                if (savedCall != null) {
+                    savedCall.reject("Failed to open login dialog: " + e.getMessage());
+                    savedCall = null;
+                }
             }
         });
     }
 }
-
