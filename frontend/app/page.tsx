@@ -31,10 +31,28 @@ export default function LandingPage() {
   const [studentName, setStudentName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Auto-redirect if already signed in on this phone/browser
+  // Auto-redirect if already signed in, or handle ?token= param from Bookmarklet/URL
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const incomingToken = params.get("token");
+
+      if (incomingToken) {
+        setLoading(true);
+        import("@/lib/api").then(({ loginWithEsproToken }) => {
+          loginWithEsproToken(incomingToken.trim())
+            .then(() => {
+              window.history.replaceState({}, document.title, window.location.pathname);
+              router.replace("/dashboard");
+            })
+            .catch((err) => {
+              setError("ESPRO session token invalid or expired. Please sync again from CUE.");
+              setLoading(false);
+            });
+        });
+        return;
+      }
+
       if (params.get("expired") === "true") {
         setSessionExpired(true);
       } else if (hasActiveSession()) {
