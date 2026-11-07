@@ -24,12 +24,38 @@ export default function LandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isNative, setIsNative] = useState(false);
 
   // Form fields
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [studentName, setStudentName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Check if running on Android/iOS native Capacitor wrapper
+  useEffect(() => {
+    import("@/lib/nativeAuth").then(({ isNativeApp }) => {
+      setIsNative(isNativeApp());
+    });
+  }, []);
+
+  const handleNativeLogin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { startNativePortalLogin } = await import("@/lib/nativeAuth");
+      const res = await startNativePortalLogin();
+      if (res.success) {
+        router.replace("/dashboard");
+      } else if (res.error && res.error !== "Login cancelled") {
+        setError(res.error);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to launch native login");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Auto-redirect if already signed in, or handle ?token= param from Bookmarklet/URL
   useEffect(() => {
@@ -146,25 +172,57 @@ export default function LandingPage() {
 
         {/* Mode Selector */}
         <div className="w-full mt-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-          <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
-            <KeyRound className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                Want 100% Real University Data?
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Christ University protects logins with Cloudflare Turnstile bot verification. Connect your live CUE session token once to pull your authentic courses and attendance directly from ESPro port 84.
+          {isNative ? (
+            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+                <h3 className="text-xs font-bold uppercase tracking-wider">
+                  One-Tap Official Login
+                </h3>
+              </div>
+              <p className="text-xs text-emerald-100 leading-relaxed">
+                Opens the official Christ University portal inside the app. Sign in once with your student ID & password—your authentic attendance and safe skips will sync automatically!
               </p>
               <button
                 type="button"
-                onClick={() => setIsTokenModalOpen(true)}
-                className="mt-2.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                onClick={handleNativeLogin}
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-lg bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-75"
               >
-                <span>Connect Live ESPRO Session (Real Data)</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
+                    <span>Syncing with Christ Portal...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In via Official CUE Portal</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-800" />
+                  </>
+                )}
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
+              <KeyRound className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  Want 100% Real University Data?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                  Christ University protects logins with Cloudflare Turnstile bot verification. Connect your live CUE session token once to pull your authentic courses and attendance directly from ESPro port 84.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsTokenModalOpen(true)}
+                  className="mt-2.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                >
+                  <span>Connect Live ESPRO Session (Real Data)</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="relative flex items-center justify-center my-4">
             <div className="absolute inset-0 flex items-center">
