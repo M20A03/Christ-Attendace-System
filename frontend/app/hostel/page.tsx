@@ -32,6 +32,7 @@ export default function HostelPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [punchFilter, setPunchFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
 
   const student = getAuthSession().student;
 
@@ -243,21 +244,38 @@ export default function HostelPage() {
 
             {/* Biometric Turnstile Punch History */}
             <div className="bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2">
                   <Fingerprint className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase tracking-wider">
                     Gate Turnstile Punch Logs
                   </h3>
                 </div>
-                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
-                  {activeData?.punches?.length || 0} Records
-                </span>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  {(["ALL", "IN", "OUT"] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setPunchFilter(filter)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        punchFilter === filter
+                          ? "bg-[#0f2b5c] dark:bg-blue-600 text-white shadow-xs"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                      }`}
+                    >
+                      {filter === "ALL" ? "All Punches" : filter === "IN" ? "Gate IN" : "Gate OUT"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {activeData?.punches && activeData.punches.length > 0 ? (
                 <div className="space-y-2.5">
-                  {activeData.punches.map((p, idx) => (
+                  {activeData.punches
+                    .filter((p) => (punchFilter === "ALL" ? true : p.punch_type === punchFilter))
+                    .map((p, idx) => (
                     <div
                       key={idx}
                       className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between"

@@ -222,23 +222,30 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            {/* Attendance inputs & sliders */}
+            {/* Attendance inputs & sliders with DIRECT TYPING */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
               {/* Classes Attended */}
-              <div className="space-y-2">
+              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60">
                 <div className="flex justify-between items-center text-xs font-bold">
                   <label htmlFor="attended-input" className="text-slate-700 dark:text-slate-300">
                     Classes Attended
                   </label>
-                  <span className="font-mono text-slate-900 dark:text-slate-100 font-extrabold text-sm">
-                    {attended}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400 font-normal">Type or slide:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={attended}
+                      onChange={(e) => setAttended(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-16 px-2 py-1 text-center font-mono font-black text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] dark:focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setAttended((prev) => Math.max(0, prev - 1))}
-                    className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="w-8 h-8 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 shadow-xs"
                   >
                     <Minus className="w-4 h-4" />
                   </motion.button>
@@ -246,7 +253,7 @@ export default function CalculatorPage() {
                     id="attended-input"
                     type="range"
                     min="0"
-                    max={Math.max(100, conducted)}
+                    max={Math.max(100, conducted * 1.2)}
                     value={attended}
                     onChange={(e) => setAttended(Number(e.target.value))}
                     className="w-full accent-[#0f2b5c] dark:accent-blue-500 cursor-pointer"
@@ -254,7 +261,7 @@ export default function CalculatorPage() {
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setAttended((prev) => prev + 1)}
-                    className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="w-8 h-8 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 shadow-xs"
                   >
                     <Plus className="w-4 h-4" />
                   </motion.button>
@@ -262,20 +269,27 @@ export default function CalculatorPage() {
               </div>
 
               {/* Total Conducted */}
-              <div className="space-y-2">
+              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60">
                 <div className="flex justify-between items-center text-xs font-bold">
                   <label htmlFor="conducted-input" className="text-slate-700 dark:text-slate-300">
                     Total Classes Conducted
                   </label>
-                  <span className="font-mono text-slate-900 dark:text-slate-100 font-extrabold text-sm">
-                    {conducted}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400 font-normal">Type or slide:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={conducted}
+                      onChange={(e) => setConducted(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1 text-center font-mono font-black text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] dark:focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setConducted((prev) => Math.max(1, prev - 1))}
-                    className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="w-8 h-8 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 shadow-xs"
                   >
                     <Minus className="w-4 h-4" />
                   </motion.button>
@@ -283,7 +297,7 @@ export default function CalculatorPage() {
                     id="conducted-input"
                     type="range"
                     min="1"
-                    max="150"
+                    max={Math.max(120, conducted * 1.2)}
                     value={conducted}
                     onChange={(e) => setConducted(Number(e.target.value))}
                     className="w-full accent-[#0f2b5c] dark:accent-blue-500 cursor-pointer"
@@ -291,7 +305,7 @@ export default function CalculatorPage() {
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setConducted((prev) => prev + 1)}
-                    className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="w-8 h-8 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 shadow-xs"
                   >
                     <Plus className="w-4 h-4" />
                   </motion.button>
@@ -299,86 +313,198 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            {/* Medical (Blue Form) and Duty Leave (Yellow Form) */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
+            {/* Official Christ University Leave Rules: Yellow Form Applied First, Blue Form >= 75% and < 85% only */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-3.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
                   <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                    Official Christ Leave Adjustments
+                    Official Christ Leave System (Blue & Yellow Forms)
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  Approved Forms
+                <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                  Type Any Valid Hours
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/40 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
-                <p>
-                  • <strong className="text-blue-700 dark:text-blue-400">Blue Form (Medical Leave):</strong> Hospitalization or serious illness verified by Campus Health Clinic (deducted from total conducted).
+              {/* Exact Christ Regulation Info Box */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed">
+                <p className="font-semibold text-slate-800 dark:text-slate-200">
+                  Christ University Attendance Leave Protocols:
                 </p>
                 <p>
-                  • <strong className="text-amber-700 dark:text-amber-400">Yellow Form (Duty Leave):</strong> Co-curricular representation, fests, sports, or hackathons credited directly into attendance.
+                  1. <strong className="text-amber-700 dark:text-amber-400 font-bold">Yellow Form (Duty Leave):</strong> Co-curricular, fests, sports & hackathons are credited first directly to attendance.
+                </p>
+                <p>
+                  2. <strong className="text-blue-700 dark:text-blue-400 font-bold">Blue Form (Medical Leave):</strong> Under university rules, medical leave can <em>only</em> be applied once your attendance reaches at least <strong className="text-slate-900 dark:text-slate-100">75%</strong> (after adding Yellow forms). Once you reach <strong className="text-slate-900 dark:text-slate-100">85%</strong>, Blue forms cannot be claimed.
                 </p>
               </div>
 
+              {/* Form Input Boxes (Fully typable with no artificial limit) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 space-y-2">
-                  <div className="flex justify-between items-center text-xs font-bold text-blue-900 dark:text-blue-300">
-                    <span>Blue Form (Medical)</span>
-                    <span className="font-mono">{blueFormHours} hrs</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setBlueFormHours((prev) => Math.max(0, prev - 1))}
-                      className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 flex items-center justify-center font-bold text-xs"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="30"
-                      value={blueFormHours}
-                      onChange={(e) => setBlueFormHours(Number(e.target.value))}
-                      className="w-full accent-blue-600 cursor-pointer"
-                    />
-                    <button
-                      onClick={() => setBlueFormHours((prev) => prev + 1)}
-                      className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 flex items-center justify-center font-bold text-xs"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 space-y-2">
+                {/* Yellow Form (Duty Leave) - Applied FIRST */}
+                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 space-y-3">
                   <div className="flex justify-between items-center text-xs font-bold text-amber-900 dark:text-amber-300">
-                    <span>Yellow Form (Duty Leave)</span>
-                    <span className="font-mono">{yellowFormHours} hrs</span>
+                    <div>
+                      <span>Yellow Form (Duty Leave)</span>
+                      <span className="block text-[10px] text-amber-700/80 dark:text-amber-400 font-normal">Fests, Sports, Hackathons</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={yellowFormHours}
+                        onChange={(e) => setYellowFormHours(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-16 px-2 py-1 text-center font-mono font-black text-sm bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-xs"
+                      />
+                      <span className="text-xs font-bold">hrs</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setYellowFormHours((prev) => Math.max(0, prev - 1))}
-                      className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-center font-bold text-xs"
+                      className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 flex items-center justify-center font-bold text-sm hover:bg-amber-200 dark:hover:bg-amber-800/80"
                     >
                       -
-                    </button>
+                    </motion.button>
                     <input
                       type="range"
                       min="0"
-                      max="30"
+                      max={Math.max(40, yellowFormHours * 1.5)}
                       value={yellowFormHours}
                       onChange={(e) => setYellowFormHours(Number(e.target.value))}
                       className="w-full accent-amber-600 cursor-pointer"
                     />
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setYellowFormHours((prev) => prev + 1)}
-                      className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-center font-bold text-xs"
+                      className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 flex items-center justify-center font-bold text-sm hover:bg-amber-200 dark:hover:bg-amber-800/80"
                     >
                       +
-                    </button>
+                    </motion.button>
                   </div>
+                  <div className="text-[11px] text-amber-800 dark:text-amber-300 font-medium pt-1 border-t border-amber-200/50 dark:border-amber-900/40">
+                    Attendance with Yellow Form: <strong className="font-mono font-bold">{metrics.pctWithYellow}%</strong>
+                  </div>
+                </div>
+
+                {/* Blue Form (Medical Leave) - Subject to 75% - 85% rule */}
+                <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+                  <div className="flex justify-between items-center text-xs font-bold text-blue-900 dark:text-blue-300">
+                    <div>
+                      <span>Blue Form (Medical Leave)</span>
+                      <span className="block text-[10px] text-blue-700/80 dark:text-blue-400 font-normal">Hospitalization / Health Clinic</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={blueFormHours}
+                        onChange={(e) => setBlueFormHours(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-16 px-2 py-1 text-center font-mono font-black text-sm bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+                      />
+                      <span className="text-xs font-bold">hrs</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setBlueFormHours((prev) => Math.max(0, prev - 1))}
+                      className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 flex items-center justify-center font-bold text-sm hover:bg-blue-200 dark:hover:bg-blue-800/80"
+                    >
+                      -
+                    </motion.button>
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.max(40, blueFormHours * 1.5)}
+                      value={blueFormHours}
+                      onChange={(e) => setBlueFormHours(Number(e.target.value))}
+                      className="w-full accent-blue-600 cursor-pointer"
+                    />
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setBlueFormHours((prev) => prev + 1)}
+                      className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 flex items-center justify-center font-bold text-sm hover:bg-blue-200 dark:hover:bg-blue-800/80"
+                    >
+                      +
+                    </motion.button>
+                  </div>
+
+                  {/* Reactive Blue Form Rule Status */}
+                  <div className="text-[11px] pt-1 border-t border-blue-200/50 dark:border-blue-900/40">
+                    {metrics.pctWithYellow < 75 ? (
+                      <span className="text-amber-700 dark:text-amber-400 font-semibold block">
+                        🔒 Locked: Attendance is {metrics.pctWithYellow}%. University requires at least 75% before medical leave applies.
+                      </span>
+                    ) : metrics.pctWithYellow >= 85 ? (
+                      <span className="text-blue-700 dark:text-blue-400 font-semibold block">
+                        ℹ️ Not Applicable: Attendance is {metrics.pctWithYellow}% (above 85%). Medical claims are not accepted once 85% is attained.
+                      </span>
+                    ) : (
+                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold block">
+                        ✅ Active: {metrics.effectiveBlueHours}h credited towards reaching 85% End-Sem requirement.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dual Target Status Cards: Mid-Sem (75%) vs End-Sem (85%) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {/* Mid-Sem 75% Status */}
+                <div className={`p-4 rounded-2xl border ${
+                  metrics.midSemEligible
+                    ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200"
+                    : "bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200"
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-mono">
+                      Mid-Semester (CIA) Target: 75%
+                    </span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      metrics.midSemEligible
+                        ? "bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100"
+                        : "bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100"
+                    }`}>
+                      {metrics.midSemEligible ? "QUALIFIED (75%+)" : "SHORTAGE"}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold">
+                    {metrics.midSemEligible
+                      ? `Eligible for Mid-Sem Exam. Safe to skip ${metrics.safeSkipsForMidSem75} classes while staying above 75%.`
+                      : `Must attend ${metrics.classesNeededForMidSem75} consecutive classes to reach 75% for Mid-Sem exams.`}
+                  </p>
+                </div>
+
+                {/* End-Sem 85% Status */}
+                <div className={`p-4 rounded-2xl border ${
+                  metrics.endSemEligible
+                    ? "bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60 text-blue-900 dark:text-blue-200"
+                    : metrics.midSemEligible
+                    ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200"
+                    : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-300"
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-mono">
+                      End-Semester Target: 85%
+                    </span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      metrics.endSemEligible
+                        ? "bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100"
+                        : metrics.midSemEligible
+                        ? "bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100"
+                        : "bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100"
+                    }`}>
+                      {metrics.endSemEligible ? "REGULAR (85%+)" : metrics.midSemEligible ? "NEEDS CLASSES" : "SHORTAGE"}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold">
+                    {metrics.endSemEligible
+                      ? `Regular Hall Ticket issued. Can skip ${metrics.safeSkipsForEndSem85} classes to stay above 85%.`
+                      : `Need ${metrics.classesNeededForEndSem85} consecutive classes to reach 85% End-Semester clearance.`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -400,7 +526,7 @@ export default function CalculatorPage() {
                         : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                   >
-                    {preset}% {preset === 75 ? "(Minimum)" : preset === 85 ? "(Recommended)" : "(Excellence)"}
+                    {preset}% {preset === 75 ? "(Mid-Sem Target)" : preset === 85 ? "(End-Sem Overall)" : "(Safe Buffer)"}
                   </button>
                 ))}
               </div>

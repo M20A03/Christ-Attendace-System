@@ -81,12 +81,26 @@ export interface AttendanceMathResult {
     label: string;
     description: string;
   };
+  // Christ University Blue & Yellow Form rules
+  yellowFormHours: number;
+  pctWithYellow: number;
+  blueFormEligible: boolean;
+  blueFormReason: string;
+  effectiveBlueHours: number;
+  midSemEligible: boolean;  // >= 75% for mid-sem / CIA
+  endSemEligible: boolean;  // >= 85% for end-sem
+  classesNeededForMidSem75: number;
+  classesNeededForEndSem85: number;
+  safeSkipsForMidSem75: number;
+  safeSkipsForEndSem85: number;
 }
 
 /**
  * Calculates authentic Christ University attendance metrics including:
- * - Blue Form (Medical Leave: approved medical certificates / hospitalization)
- * - Yellow Form (Duty Leave: co-curricular, hackathons, fests, sports, symposiums)
+ * - Minimum 75% per subject for Mid-Semester (CIA)
+ * - Overall 85% for End-Semester
+ * - Yellow Form (Duty Leave for fests, sports, hackathons) added first
+ * - Blue Form (Medical Leave): strictly applied ONLY when attendance with Yellow form is >= 75% and < 85%. Cannot be applied if < 75% or >= 85%.
  */
 export function calculateAttendanceMetrics(
   attended: number,
@@ -97,43 +111,82 @@ export function calculateAttendanceMetrics(
 ): AttendanceMathResult {
   const conducted = Math.max(1, total);
   const rawAtt = Math.max(0, attended);
-  const blue = Math.max(0, blueFormHours);
   const yellow = Math.max(0, yellowFormHours);
+  const requestedBlue = Math.max(0, blueFormHours);
   const target = Math.min(1.0, Math.max(0.1, targetFraction));
   const targetPct = target * 100;
 
-  const totalEffectiveAttended = rawAtt + blue + yellow;
+  // 1. Raw percentage
   const rawPct = Math.min(100, Math.round((rawAtt / conducted) * 1000) / 10);
-  const adjustedPct = Math.min(100, Math.round((totalEffectiveAttended / conducted) * 1000) / 10);
 
-  // Safe Skips:
-  // Can skip = max(0, floor((totalEffectiveAttended * 100) / targetPct - conducted))
-  const safeSkips = Math.max(
-    0,
-    Math.floor((totalEffectiveAttended * 100) / targetPct - conducted)
-  );
+  // 2. Add Yellow Form (Duty Leave) first
+  const attendedWithYellow = rawAtt + yellow;
+  const pctWithYellow = Math.min(100, Math.round((attendedWithYellow / conducted) * 1000) / 10);
 
-  // Consecutive classes needed to reach target if below:
-  let classesNeeded = 0;
-  if (adjustedPct < targetPct && target < 1.0) {
-    classesNeeded = Math.ceil(
-      (targetPct * conducted - 100 * totalEffectiveAttended) / (100 - targetPct)
-    );
+  // 3. Christ University Blue Form (Medical Leave) Rules:
+  // Rule A: Blue form is applied ONLY when attendance after Yellow form is at least 75%.
+  // Rule B: After 85%, Blue form cannot be applied.
+  let blueFormEligible = false;
+  let blueFormReason = "";
+  let effectiveBlueHours = 0;
+
+  if (pctWithYellow < 75) {
+    blueFormEligible = false;
+    blueFormReason = "Blue Form locked: Christ University policy requires at least 75% attendance (including Yellow forms) before medical claims can be processed.";
+    effectiveBlueHours = 0;
+  } else if (pctWithYellow >= 85) {
+    blueFormEligible = false;
+    blueFormReason = "Blue Form not applicable: Attendance is already 85%+ (End-Sem eligible); medical leave cannot be claimed once 85% is attained.";
+    effectiveBlueHours = 0;
+  } else {
+    // 75% <= pctWithYellow < 85% -> Eligible!
+    blueFormEligible = true;
+    const hoursNeededTo85 = Math.max(0, Math.ceil(0.85 * conducted) - attendedWithYellow);
+    effectiveBlueHours = Math.min(requestedBlue, hoursNeededTo85);
+    blueFormReason = requestedBlue > effectiveBlueHours
+      ? `Applied ${effectiveBlueHours}h medical leave to reach 85% target (university policy caps medical claims at 85%).`
+      : `Applied ${effectiveBlueHours}h medical leave towards 85% clearance.`;
   }
 
+  // 4. Effective final attendance
+  const totalEffectiveAttended = attendedWithYellow + effectiveBlueHours;
+  const adjustedPct = Math.min(100, Math.round((totalEffectiveAttended / conducted) * 1000) / 10);
+
+  // 5. Dual Christ University Targets:
+  // Mid-Sem threshold = 75%
+  // End-Sem threshold = 85%
+  const midSemEligible = adjustedPct >= 75;
+  const endSemEligible = adjustedPct >= 85;
+
+  // Safe skips and classes needed for 75% Mid-Sem
+  const safeSkipsForMidSem75 = Math.max(0, Math.floor((totalEffectiveAttended * 100) / 75 - conducted));
+  const classesNeededForMidSem75 = adjustedPct < 75 ? Math.ceil((75 * conducted - 100 * totalEffectiveAttended) / (100 - 75)) : 0;
+
+  // Safe skips and classes needed for 85% End-Sem
+  const safeSkipsForEndSem85 = Math.max(0, Math.floor((totalEffectiveAttended * 100) / 85 - conducted));
+  const classesNeededForEndSem85 = adjustedPct < 85 ? Math.ceil((85 * conducted - 100 * totalEffectiveAttended) / (100 - 85)) : 0;
+
+  // Primary metrics tied to active user target
+  const safeSkips = Math.max(0, Math.floor((totalEffectiveAttended * 100) / targetPct - conducted));
+  let classesNeeded = 0;
+  if (adjustedPct < targetPct && target < 1.0) {
+    classesNeeded = Math.ceil((targetPct * conducted - 100 * totalEffectiveAttended) / (100 - targetPct));
+  }
+
+  // Calibrate status so 75%–84.9% does NOT trigger a red danger alert
   let status: "safe" | "warning" | "danger" = "safe";
   if (adjustedPct >= 85) {
     status = "safe";
   } else if (adjustedPct >= 75) {
-    status = "warning";
+    status = "warning"; // Warning/Caution, NOT Danger!
   } else {
-    status = "danger";
+    status = "danger";  // Only < 75% is danger
   }
 
   let message = "";
   if (adjustedPct >= targetPct) {
     if (safeSkips === 0) {
-      message = "On borderline — attend your next class";
+      message = "On borderline — attend your next lecture";
     } else {
       message = `Can safely skip ${safeSkips} class${safeSkips === 1 ? "" : "es"}`;
     }
@@ -146,20 +199,20 @@ export function calculateAttendanceMetrics(
   if (adjustedPct >= 85) {
     eligibility = {
       status: "regular",
-      label: "Eligible (Regular)",
-      description: "No fines or condonation required. Hall ticket issued automatically.",
+      label: "End-Sem Eligible (85%+)",
+      description: "Full regular eligibility for End-Semester Examinations with no condonation required.",
     };
   } else if (adjustedPct >= 75) {
     eligibility = {
       status: "condonation",
-      label: "Eligible with Form (75%–85%)",
-      description: "Eligible for End-Sem Exam with approved Blue (Medical) / Yellow (Duty) form or condonation.",
+      label: "Mid-Sem Safe (75%–84.9%)",
+      description: "Eligible for Mid-Semester Exams (CIA). Need classes or approved forms to reach 85% for End-Sem.",
     };
   } else {
     eligibility = {
       status: "shortage",
       label: "Attendance Shortage (< 75%)",
-      description: "Strict shortage. University rules deny exam hall ticket unless condoned by Dean.",
+      description: "Below mandatory 75% minimum requirement. Exam hall ticket withheld unless condoned by Dean.",
     };
   }
 
@@ -172,6 +225,17 @@ export function calculateAttendanceMetrics(
     status,
     message,
     eligibility,
+    yellowFormHours: yellow,
+    pctWithYellow,
+    blueFormEligible,
+    blueFormReason,
+    effectiveBlueHours,
+    midSemEligible,
+    endSemEligible,
+    classesNeededForMidSem75,
+    classesNeededForEndSem85,
+    safeSkipsForMidSem75,
+    safeSkipsForEndSem85,
   };
 }
 
@@ -181,15 +245,26 @@ export function calculateAttendanceMetrics(
 export function simulateAttendance(
   attended: number,
   total: number,
-  additionalAttended: number,
-  additionalMissed: number,
+  additionalAttended: number = 0,
+  additionalMissed: number = 0,
   blueFormHours: number = 0,
   yellowFormHours: number = 0
 ): number {
-  const newAttended = attended + additionalAttended + blueFormHours + yellowFormHours;
-  const newTotal = total + additionalAttended + additionalMissed;
-  if (newTotal <= 0) return 100;
-  return Math.min(100, Math.round((newAttended / newTotal) * 1000) / 10);
+  const newConducted = Math.max(1, total + additionalAttended + additionalMissed);
+  const rawAtt = Math.max(0, attended + additionalAttended);
+  const yellow = Math.max(0, yellowFormHours);
+
+  const attendedWithYellow = rawAtt + yellow;
+  const pctWithYellow = (attendedWithYellow / newConducted) * 100;
+
+  let effectiveBlue = 0;
+  if (pctWithYellow >= 75 && pctWithYellow < 85) {
+    const hoursNeededTo85 = Math.max(0, Math.ceil(0.85 * newConducted) - attendedWithYellow);
+    effectiveBlue = Math.min(Math.max(0, blueFormHours), hoursNeededTo85);
+  }
+
+  const finalAttended = attendedWithYellow + effectiveBlue;
+  return Math.min(100, Math.round((finalAttended / newConducted) * 1000) / 10);
 }
 
 // ==========================================

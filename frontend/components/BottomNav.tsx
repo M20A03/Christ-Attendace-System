@@ -52,7 +52,7 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#080d1a]/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/80 shadow-[0_-4px_24px_rgba(15,43,92,0.06)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.5)] pb-safe transition-colors duration-200">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#070b16]/90 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-4px_24px_rgba(15,43,92,0.06)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.6)] pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1 transition-colors duration-200">
       <div className="max-w-lg mx-auto px-1 h-16 flex items-center justify-around">
         {navItems.map((item) => {
           const isActive = pathname === item.href;

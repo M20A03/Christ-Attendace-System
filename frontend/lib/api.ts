@@ -5,6 +5,14 @@ import { getAuthSession, setAuthSession, clearAuthSession, StudentInfo } from ".
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export interface SubjectDailyLog {
+  date: string;
+  time: string;
+  status: "present" | "absent" | "duty_leave" | "medical_leave" | string;
+  topic?: string;
+  room?: string;
+}
+
 export interface SubjectAttendance {
   name: string;
   attended: number;
@@ -12,6 +20,7 @@ export interface SubjectAttendance {
   percentage: number;
   subject_code?: string;
   faculty?: string;
+  daily_logs?: SubjectDailyLog[];
 }
 
 export interface TodayClass {

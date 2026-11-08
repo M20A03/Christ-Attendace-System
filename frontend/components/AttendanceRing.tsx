@@ -41,13 +41,13 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
       };
     } else if (percentage >= 75) {
       return {
-        stroke: "#d97706",
-        gradientId: "amberGradient",
-        startColor: "#f59e0b",
-        endColor: "#d97706",
-        text: "text-amber-600 dark:text-amber-400",
-        bgBadge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60",
-        label: "Warning Zone (75%–85%)",
+        stroke: "#2563eb",
+        gradientId: "blueGradient",
+        startColor: "#3b82f6",
+        endColor: "#1d4ed8",
+        text: "text-blue-600 dark:text-blue-400",
+        bgBadge: "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
+        label: "Mid-Sem Cleared (75%+) • Goal: 85%",
       };
     } else {
       return {

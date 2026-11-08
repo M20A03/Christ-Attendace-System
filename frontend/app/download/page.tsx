@@ -32,7 +32,7 @@ export default function DownloadPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#060a12] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-[#0f2b5c]/10 selection:text-[#0f2b5c] dark:selection:bg-blue-500/20 dark:selection:text-blue-300 transition-colors duration-200">
       {/* Top Header */}
-      <header className="max-w-4xl mx-auto w-full px-5 py-4 flex items-center justify-between border-b border-slate-200/90 dark:border-slate-800/80">
+      <header className="max-w-4xl mx-auto w-full px-5 pt-[max(env(safe-area-inset-top),1rem)] pb-4 flex items-center justify-between border-b border-slate-200/90 dark:border-slate-800/80">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-2xl bg-slate-950 dark:bg-slate-900 flex flex-col items-center justify-center border border-slate-800 dark:border-slate-700 shadow-xs select-none px-1">
