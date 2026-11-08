@@ -198,7 +198,11 @@ export default function DashboardPage() {
           ) : data?.subjects && data.subjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {data.subjects.map((sub, idx) => (
-                <SubjectCard key={idx} subject={sub} />
+                <SubjectCard
+                  key={idx}
+                  subject={sub}
+                  todayClasses={data.today_classes}
+                />
               ))}
             </div>
           ) : (
