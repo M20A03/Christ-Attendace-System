@@ -4,8 +4,10 @@ Provides OIDC Keycloak PKCE token exchange, AES-GCM encrypted session management
 and authenticated proxying to Christ University attendance/marks endpoints.
 """
 import os
+import hashlib
 from contextlib import asynccontextmanager
 from typing import Optional, List
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -487,10 +489,12 @@ async def list_confessions(
 ):
     """
     List anonymous Christ University campus confessions.
+    Confessions automatically disappear 24 hours after posting.
     Supports filtering by campus and category, and sorting by newest or popular.
     """
     records = await db.get_confessions(campus=campus, category=category, sort_by=sort_by, limit=limit)
     response = []
+    now = datetime.now(timezone.utc)
     for c in records:
         comments_list = [
             ConfessionCommentResponse(
@@ -501,6 +505,14 @@ async def list_confessions(
             )
             for cm in getattr(c, "comments", [])
         ]
+        created_dt = (
+            c.created_at
+            if (c.created_at and c.created_at.tzinfo)
+            else (c.created_at.replace(tzinfo=timezone.utc) if c.created_at else now)
+        )
+        expires_dt = created_dt + timedelta(hours=24)
+        rem_sec = max(0, int((expires_dt - now).total_seconds()))
+
         response.append(
             ConfessionResponse(
                 id=c.id,
@@ -510,6 +522,8 @@ async def list_confessions(
                 likes_count=c.likes_count or 0,
                 comments_count=len(comments_list),
                 created_at=c.created_at.isoformat() if c.created_at else "",
+                expires_at=expires_dt.isoformat(),
+                expires_in_seconds=rem_sec,
                 comments=comments_list,
             )
         )
@@ -517,21 +531,45 @@ async def list_confessions(
 
 
 @app.post("/confessions", response_model=ConfessionResponse, tags=["Confessions"])
-async def post_confession(body: ConfessionCreate):
+async def post_confession(
+    body: ConfessionCreate,
+    request: Request,
+    x_user_id: Optional[str] = Header(None),
+):
     """
-    Post a 100% anonymous confession. Never links to student identity or credentials.
+    Post a 100% anonymous confession.
+    Enforces maximum 80 characters, 24-hour expiration (auto disappears), and 1 confession per 3 days (72 hours).
     """
-    if not body.content or not body.content.strip():
+    clean_text = body.content.strip() if body.content else ""
+    if not clean_text:
         raise HTTPException(status_code=400, detail="Confession content cannot be empty")
     
-    if len(body.content.strip()) > 2000:
-        raise HTTPException(status_code=400, detail="Confession exceeds 2000 character limit")
+    if len(clean_text) > 80:
+        raise HTTPException(status_code=400, detail="Confession exceeds maximum limit of 80 characters")
 
-    c = await db.create_confession(
-        content=body.content.strip(),
-        campus=body.campus or "Central Campus",
-        category=body.category or "Campus Life",
+    # Author identifier for 3-day cooldown enforcement (privacy-preserving hash)
+    client_ip = request.client.host if request.client else "unknown"
+    author_seed = f"{x_user_id or client_ip}_confession_author"
+    author_id = hashlib.sha256(author_seed.encode("utf-8")).hexdigest()[:32]
+
+    try:
+        c = await db.create_confession(
+            content=clean_text,
+            campus=body.campus or "Central Campus",
+            category=body.category or "Campus Life",
+            author_id=author_id,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=429, detail=str(err))
+
+    now = datetime.now(timezone.utc)
+    created_dt = (
+        c.created_at
+        if (c.created_at and c.created_at.tzinfo)
+        else (c.created_at.replace(tzinfo=timezone.utc) if c.created_at else now)
     )
+    expires_dt = created_dt + timedelta(hours=24)
+    rem_sec = max(0, int((expires_dt - now).total_seconds()))
 
     return ConfessionResponse(
         id=c.id,
@@ -541,6 +579,8 @@ async def post_confession(body: ConfessionCreate):
         likes_count=c.likes_count,
         comments_count=0,
         created_at=c.created_at.isoformat() if c.created_at else "",
+        expires_at=expires_dt.isoformat(),
+        expires_in_seconds=rem_sec,
         comments=[],
     )
 

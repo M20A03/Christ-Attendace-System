@@ -35,13 +35,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var stored = localStorage.getItem('theme');
+                  var supportDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (stored === 'dark' || (!stored && supportDark)) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
-      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-[#0f2b5c]/15 selection:text-[#0f2b5c]">
+      <body className="bg-slate-50 dark:bg-[#060a12] text-slate-900 dark:text-slate-100 min-h-screen antialiased selection:bg-[#0f2b5c]/15 selection:text-[#0f2b5c] dark:selection:bg-blue-500/25 dark:selection:text-blue-200 transition-colors duration-200">
         {children}
         <PWAInstallPrompt />
         <script
@@ -61,4 +78,3 @@ export default function RootLayout({
     </html>
   );
 }
-

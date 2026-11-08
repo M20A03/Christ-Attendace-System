@@ -197,17 +197,17 @@ export default function CalculatorPage() {
   const resultDivision = getResultDivision(averagePercentage);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 selection:bg-[#0f2b5c]/10 selection:text-[#0f2b5c]">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#060a12] text-slate-900 dark:text-slate-100 pb-24 selection:bg-[#0f2b5c]/10 selection:text-[#0f2b5c] dark:selection:bg-blue-500/20 dark:selection:text-blue-300 transition-colors duration-200">
       <Navbar student={getAuthSession().student} />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Top High-Tech Segmented Switcher */}
         <div className="flex items-center justify-center">
-          <div className="relative inline-flex p-1.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_12px_rgba(15,43,92,0.04)]">
+          <div className="relative inline-flex p-1.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_2px_12px_rgba(15,43,92,0.04)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
             <button
               onClick={() => setActiveTab("attendance")}
               className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
-                activeTab === "attendance" ? "text-white" : "text-slate-600 hover:text-slate-900"
+                activeTab === "attendance" ? "text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -217,7 +217,7 @@ export default function CalculatorPage() {
             <button
               onClick={() => setActiveTab("marks")}
               className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
-                activeTab === "marks" ? "text-white" : "text-slate-600 hover:text-slate-900"
+                activeTab === "marks" ? "text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
               }`}
             >
               <Award className="w-4 h-4" />
@@ -227,7 +227,7 @@ export default function CalculatorPage() {
             {/* Sliding spring background pill */}
             <motion.div
               layoutId="calcTabPill"
-              className="absolute inset-1.5 rounded-xl bg-[#0f2b5c] shadow-sm pointer-events-none"
+              className="absolute inset-1.5 rounded-xl bg-[#0f2b5c] dark:bg-blue-600 shadow-sm pointer-events-none"
               style={{
                 left: activeTab === "attendance" ? "6px" : "calc(50% + 2px)",
                 width: "calc(50% - 8px)",

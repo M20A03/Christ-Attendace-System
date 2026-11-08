@@ -311,6 +311,8 @@ export interface ConfessionItem {
   likes_count: number;
   comments_count: number;
   created_at: string;
+  expires_at?: string;
+  expires_in_seconds?: number;
   comments?: ConfessionComment[];
 }
 

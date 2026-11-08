@@ -121,5 +121,7 @@ class ConfessionResponse(BaseModel):
     likes_count: int = 0
     comments_count: int = 0
     created_at: str
+    expires_at: Optional[str] = None
+    expires_in_seconds: Optional[int] = None
     comments: List[ConfessionCommentResponse] = []
 

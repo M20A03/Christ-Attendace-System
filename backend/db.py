@@ -4,7 +4,7 @@ Supports PostgreSQL (asyncpg) in production (Supabase/Railway) and SQLite (aiosq
 """
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, relationship
@@ -48,7 +48,7 @@ class Confession(Base):
     __tablename__ = "confessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    content = Column(String(2000), nullable=False)
+    content = Column(String(80), nullable=False)
     campus = Column(String(64), default="Central Campus")
     category = Column(String(64), default="Campus Life")
     likes_count = Column(Integer, default=0)
@@ -62,10 +62,17 @@ class ConfessionComment(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     confession_id = Column(String(36), ForeignKey("confessions.id", ondelete="CASCADE"), nullable=False, index=True)
-    content = Column(String(1000), nullable=False)
+    content = Column(String(500), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     confession = relationship("Confession", back_populates="comments")
+
+
+class ConfessionAuthorCooldown(Base):
+    __tablename__ = "confession_cooldowns"
+
+    author_id = Column(String(64), primary_key=True)
+    last_posted_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 def get_database_url() -> str:
@@ -236,19 +243,52 @@ async def get_cached_attendance(user_id: str) -> Optional[str]:
         return result.scalar_one_or_none()
 
 
-async def create_confession(content: str, campus: str = "Central Campus", category: str = "Campus Life") -> Confession:
-    """Create an anonymous confession."""
+async def create_confession(
+    content: str,
+    campus: str = "Central Campus",
+    category: str = "Campus Life",
+    author_id: Optional[str] = None
+) -> Confession:
+    """
+    Create an anonymous confession.
+    Enforces maximum 80 characters and 1 confession per 3 days (72 hours) per author.
+    """
+    clean_text = content.strip()
+    if len(clean_text) > 80:
+        raise ValueError("Confession must be 80 characters or fewer")
+
+    now = datetime.now(timezone.utc)
+
     async with AsyncSessionLocal() as session:
         async with session.begin():
+            # Enforce 3-day cooldown (1 confession per 3 days)
+            if author_id:
+                stmt = select(ConfessionAuthorCooldown).where(ConfessionAuthorCooldown.author_id == author_id)
+                res = await session.execute(stmt)
+                cd = res.scalar_one_or_none()
+                if cd and cd.last_posted_at:
+                    elapsed = now - cd.last_posted_at
+                    if elapsed < timedelta(days=3):
+                        remaining = timedelta(days=3) - elapsed
+                        rem_hours = max(1, int(remaining.total_seconds() // 3600))
+                        rem_days = rem_hours // 24
+                        time_str = f"{rem_days}d {rem_hours % 24}h" if rem_days > 0 else f"{rem_hours}h"
+                        raise ValueError(f"You can post only 1 confession every 3 days. Next available in {time_str}.")
+                    cd.last_posted_at = now
+                else:
+                    new_cd = ConfessionAuthorCooldown(author_id=author_id, last_posted_at=now)
+                    session.add(new_cd)
+
             confession = Confession(
                 id=str(uuid.uuid4()),
-                content=content.strip(),
+                content=clean_text,
                 campus=campus.strip() if campus else "Central Campus",
                 category=category.strip() if category else "Campus Life",
                 likes_count=0,
-                created_at=datetime.now(timezone.utc),
+                created_at=now,
             )
             session.add(confession)
+
         # Re-fetch with eager loaded comments
         stmt = select(Confession).options(selectinload(Confession.comments)).where(Confession.id == confession.id)
         res = await session.execute(stmt)
@@ -256,9 +296,22 @@ async def create_confession(content: str, campus: str = "Central Campus", catego
 
 
 async def get_confessions(campus: Optional[str] = None, category: Optional[str] = None, sort_by: str = "newest", limit: int = 50):
-    """Retrieve confessions with comments."""
+    """
+    Retrieve active confessions with comments.
+    Confessions automatically reset every 24 hours (records older than 24h are deleted).
+    """
+    now = datetime.now(timezone.utc)
+    cutoff_24h = now - timedelta(hours=24)
+
     async with AsyncSessionLocal() as session:
-        stmt = select(Confession).options(selectinload(Confession.comments))
+        # Automatic 24-hour cleanup: remove expired confessions
+        try:
+            await session.execute(delete(Confession).where(Confession.created_at < cutoff_24h))
+            await session.commit()
+        except Exception:
+            pass
+
+        stmt = select(Confession).options(selectinload(Confession.comments)).where(Confession.created_at >= cutoff_24h)
         
         if campus and campus != "All Campuses":
             stmt = stmt.where(Confession.campus == campus)
@@ -273,30 +326,6 @@ async def get_confessions(campus: Optional[str] = None, category: Optional[str] 
         stmt = stmt.limit(limit)
         result = await session.execute(stmt)
         confessions = result.scalars().all()
-
-        # Seed initial confessions if table is fresh
-        if not confessions and not campus and not category:
-            starter = [
-                ("The filter coffee at Gourmet near Central Block hits differently before an 8:30 AM lecture.", "Central Campus", "Campus Life", 42),
-                ("To whoever put 'I survived CIA 2' laptop sticker in Audi 1: need that energy for ESE.", "Central Campus", "Campus Life", 35),
-                ("The evening breeze from Kengeri lake during campus breaks makes the Bangalore commute worth it.", "Kengeri", "Campus Life", 29),
-                ("PSA: Submit your Yellow Form to the department coordinator within 3 days after fest or HOD will reject it!", "Central Campus", "Advice", 58),
-                ("Library 4th floor quiet study cubicles are the only reason my GPA crossed 3.5 on 4.0 scale.", "Central Campus", "Campus Life", 44),
-            ]
-            for text, camp, cat, likes in starter:
-                c = Confession(
-                    id=str(uuid.uuid4()),
-                    content=text,
-                    campus=camp,
-                    category=cat,
-                    likes_count=likes,
-                    created_at=datetime.now(timezone.utc),
-                )
-                session.add(c)
-            await session.commit()
-            result = await session.execute(stmt)
-            confessions = result.scalars().all()
-
         return confessions
 
 
