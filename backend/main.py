@@ -370,40 +370,50 @@ async def resolve_student_and_token(
     )
 
 
+@app.post("/attendance/save", tags=["Portal"])
+async def save_attendance(
+    body: AttendanceResponse,
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Saves authentic attendance intercepted directly from CUE portal into PostgreSQL.
+    """
+    token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
+    if effective_user_id and body.subjects:
+        await db.save_cached_attendance(effective_user_id, body.model_dump_json())
+    return {"success": True, "saved_subjects": len(body.subjects)}
+
+
 @app.get("/attendance", response_model=AttendanceResponse, tags=["Portal"])
 async def get_attendance(
     authorization: Optional[str] = Header(None),
     x_user_id: Optional[str] = Header(None),
 ):
     """
-    Fetches student attendance from the Christ University internal portal.
-    Persists real student records in database for 30+ days.
+    Fetches student attendance. First checks PostgreSQL cache of real student records.
     """
     token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
-    res = await portal.fetch_student_attendance(token, student)
 
-    # If live portal returned authentic records (not mock default), cache them permanently
-    is_real_data = (
-        res.subjects
-        and len(res.subjects) > 0
-        and res.subjects[0].name != "Design & Analysis of Algorithms"
-    )
-
-    if effective_user_id and is_real_data:
-        try:
-            await db.save_cached_attendance(effective_user_id, res.model_dump_json())
-        except Exception:
-            pass
-    elif effective_user_id:
-        # Check if we have previously cached real attendance for this user
+    # 1. Check if we already have real attendance cached in DB
+    if effective_user_id:
         cached_json = await db.get_cached_attendance(effective_user_id)
         if cached_json:
             import json
             try:
                 cached_dict = json.loads(cached_json)
-                return AttendanceResponse(**cached_dict)
+                if cached_dict.get("subjects"):
+                    return AttendanceResponse(**cached_dict)
             except Exception:
                 pass
+
+    # 2. Try live portal fetch
+    res = await portal.fetch_student_attendance(token, student)
+    if effective_user_id and res.subjects:
+        try:
+            await db.save_cached_attendance(effective_user_id, res.model_dump_json())
+        except Exception:
+            pass
 
     return res
 

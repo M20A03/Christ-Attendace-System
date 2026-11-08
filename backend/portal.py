@@ -22,167 +22,26 @@ from models import (
     HostelBiometricPunch,
 )
 
-# Standard mock dataset representing authentic Christ University BTech/BCA/MCA curriculum
-MOCK_ATTENDANCE = {
-    "student": {
-        "name": "Mayank Raj",
-        "reg_number": "2347101",
-    },
-    "overall_attendance": 84.6,
-    "subjects": [
-        {
-            "name": "Design & Analysis of Algorithms",
-            "subject_code": "CS431",
-            "faculty": "Dr. Ramesh Babu",
-            "attended": 38,
-            "total": 42,
-            "percentage": 90.5,
-        },
-        {
-            "name": "Database Management Systems",
-            "subject_code": "CS432",
-            "faculty": "Prof. Anita George",
-            "attended": 34,
-            "total": 40,
-            "percentage": 85.0,
-        },
-        {
-            "name": "Computer Networks & Security",
-            "subject_code": "CS433",
-            "faculty": "Dr. Pradeep Kumar",
-            "attended": 28,
-            "total": 36,
-            "percentage": 77.8,
-        },
-        {
-            "name": "Operating Systems & Shell Scripting",
-            "subject_code": "CS434",
-            "faculty": "Prof. Sangeetha M.",
-            "attended": 31,
-            "total": 38,
-            "percentage": 81.6,
-        },
-        {
-            "name": "Software Engineering & Agile",
-            "subject_code": "CS435",
-            "faculty": "Dr. Vinod Sharma",
-            "attended": 35,
-            "total": 40,
-            "percentage": 87.5,
-        },
-        {
-            "name": "Universal Human Values & Professional Ethics",
-            "subject_code": "HS401",
-            "faculty": "Rev. Fr. Lijo Thomas",
-            "attended": 21,
-            "total": 24,
-            "percentage": 87.5,
-        },
-    ],
-    "today_classes": [
-        {
-            "subject": "Design & Analysis of Algorithms",
-            "time": "09:00 AM - 10:00 AM",
-            "status": "present",
-            "room": "Audi Block 402",
-        },
-        {
-            "subject": "Database Management Systems",
-            "time": "10:15 AM - 11:15 AM",
-            "status": "present",
-            "room": "Central Block 204",
-        },
-        {
-            "subject": "Computer Networks & Security",
-            "time": "11:30 AM - 12:30 PM",
-            "status": "absent",
-            "room": "Central Block 204",
-        },
-        {
-            "subject": "Operating Systems & Shell Scripting",
-            "time": "01:30 PM - 02:30 PM",
-            "status": "not_marked",
-            "room": "Lab 3, 5th Floor",
-        },
-        {
-            "subject": "Software Engineering & Agile",
-            "time": "02:45 PM - 03:45 PM",
-            "status": "not_marked",
-            "room": "Audi Block 402",
-        },
-    ],
-}
+# Empty attendance default when no portal records have been synced yet
+def get_empty_attendance(student: StudentInfo) -> AttendanceResponse:
+    """Return clean empty attendance indicating sync is required."""
+    return AttendanceResponse(
+        student=student,
+        overall_attendance=0.0,
+        subjects=[],
+        today_classes=[],
+        last_updated="Sync Required",
+    )
 
-MOCK_MARKS = {
-    "student": {
-        "name": "Mayank Raj",
-        "reg_number": "2347101",
-    },
-    "semester": "Semester IV - B.Tech CSE",
-    "overall_gpa": 8.72,
-    "marks": [
-        {
-            "subject": "Design & Analysis of Algorithms",
-            "cia1": 18.5,
-            "cia2": 44.0,
-            "cia3": 19.0,
-            "attendance_marks": 5.0,
-            "total": 86.5,
-            "max_marks": 100.0,
-            "grade": "A+",
-        },
-        {
-            "subject": "Database Management Systems",
-            "cia1": 17.0,
-            "cia2": 42.5,
-            "cia3": 18.5,
-            "attendance_marks": 5.0,
-            "total": 83.0,
-            "max_marks": 100.0,
-            "grade": "A",
-        },
-        {
-            "subject": "Computer Networks & Security",
-            "cia1": 15.0,
-            "cia2": 37.0,
-            "cia3": 16.0,
-            "attendance_marks": 4.0,
-            "total": 72.0,
-            "max_marks": 100.0,
-            "grade": "B+",
-        },
-        {
-            "subject": "Operating Systems & Shell Scripting",
-            "cia1": 16.5,
-            "cia2": 40.0,
-            "cia3": 17.5,
-            "attendance_marks": 4.5,
-            "total": 78.5,
-            "max_marks": 100.0,
-            "grade": "A",
-        },
-        {
-            "subject": "Software Engineering & Agile",
-            "cia1": 19.0,
-            "cia2": 46.0,
-            "cia3": 18.0,
-            "attendance_marks": 5.0,
-            "total": 88.0,
-            "max_marks": 100.0,
-            "grade": "A+",
-        },
-        {
-            "subject": "Universal Human Values & Professional Ethics",
-            "cia1": 19.5,
-            "cia2": 48.0,
-            "cia3": 19.5,
-            "attendance_marks": 5.0,
-            "total": 92.0,
-            "max_marks": 100.0,
-            "grade": "O",
-        },
-    ],
-}
+
+def get_empty_marks(student: StudentInfo) -> MarksResponse:
+    """Return clean empty marks response when no portal marks synced yet."""
+    return MarksResponse(
+        student=student,
+        semester="Current",
+        overall_gpa=0.0,
+        marks=[],
+    )
 
 
 def parse_portal_attendance_data(raw_data: Any, student: StudentInfo, overall_pct: Optional[float] = None) -> AttendanceResponse:
@@ -260,34 +119,8 @@ def parse_portal_attendance_data(raw_data: Any, student: StudentInfo, overall_pc
                 last_updated=datetime.datetime.now().strftime("%I:%M %p"),
             )
 
-    # Fallback to realistic dataset personalized for this student
-    return get_mock_attendance(student)
-
-
-def get_mock_attendance(student: StudentInfo) -> AttendanceResponse:
-    """Return realistic mock attendance populated with the student's actual name & reg number."""
-    mock = MOCK_ATTENDANCE.copy()
-    subjects = [SubjectAttendance(**s) for s in mock["subjects"]]
-    today = [TodayClass(**c) for c in mock["today_classes"]]
-    return AttendanceResponse(
-        student=student,
-        overall_attendance=mock["overall_attendance"],
-        subjects=subjects,
-        today_classes=today,
-        last_updated=datetime.datetime.now().strftime("%I:%M %p"),
-    )
-
-
-def get_mock_marks(student: StudentInfo) -> MarksResponse:
-    """Return realistic mock marks populated with the student's actual name & reg number."""
-    mock = MOCK_MARKS.copy()
-    marks = [SubjectMark(**m) for m in mock["marks"]]
-    return MarksResponse(
-        student=student,
-        semester=mock["semester"],
-        overall_gpa=mock["overall_gpa"],
-        marks=marks,
-    )
+    # When no courses could be parsed, return clean empty state
+    return get_empty_attendance(student)
 
 
 async def fetch_student_attendance(access_token: str, student: StudentInfo) -> AttendanceResponse:
@@ -296,7 +129,7 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
     Supports both ClassRoomAttendanceServices and KPServiceNew based on student semester configuration.
     """
     if not access_token or access_token.startswith("demo_"):
-        return get_mock_attendance(student)
+        return get_empty_attendance(student)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -376,7 +209,7 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
     except Exception as e:
         logger.error("Exception fetching real attendance from portal: %s", e)
 
-    return get_mock_attendance(student)
+    return get_empty_attendance(student)
 
 
 async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksResponse:
@@ -388,7 +221,7 @@ async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksR
       3. POST ExamServices/ExamCiaResultView/getExamCiaResultView?classId={classId}
     """
     if not access_token or access_token.startswith("demo_"):
-        return get_mock_marks(student)
+        return get_empty_marks(student)
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -431,7 +264,7 @@ async def fetch_student_marks(access_token: str, student: StudentInfo) -> MarksR
     except Exception as e:
         logger.warning("Error fetching CIA marks from portal: %s", e)
 
-    return get_mock_marks(student)
+    return get_empty_marks(student)
 
 
 async def fetch_hostel_attendance(access_token: str) -> HostelBiometricInfo:

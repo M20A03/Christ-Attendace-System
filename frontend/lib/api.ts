@@ -184,36 +184,36 @@ export async function loginWithCredentials(
 
 /**
  * Fetch attendance data on demand.
- * On native Android app, directly fetches from Christ University port 84 using the student's Indian IP,
- * completely bypassing cloud datacenter blocks and firewalls.
+ * First checks locally cached real attendance from WebView interception.
+ * If not found or on refresh, queries the backend.
  */
 export async function fetchAttendance(): Promise<AttendanceData> {
   const session = getAuthSession();
 
-  // 1. Try native direct fetch from phone if in Android app
-  if (session.accessToken && typeof window !== "undefined") {
+  // 1. Check if we have locally cached authentic attendance from WebView interception
+  if (typeof window !== "undefined") {
     try {
-      const { isNativeApp, fetchNativePortalAttendance } = await import("./nativeAuth");
-      if (isNativeApp()) {
-        const nativeResult = await fetchNativePortalAttendance(session.accessToken);
-        if (nativeResult && nativeResult.subjects && nativeResult.subjects.length > 0) {
-          const studentInfo = session.student || { name: "Christ Student", reg_number: "2543115" };
-          return {
-            student: studentInfo,
-            overall_attendance: nativeResult.overall_attendance || 0.0,
-            subjects: nativeResult.subjects,
-            today_classes: nativeResult.today_classes || [],
-            last_updated: nativeResult.last_updated || "Just now",
-          };
+      const localCached = localStorage.getItem("cu_cached_attendance");
+      if (localCached) {
+        const parsed: AttendanceData = JSON.parse(localCached);
+        if (parsed && parsed.subjects && parsed.subjects.length > 0) {
+          if (session.student) {
+            parsed.student = session.student;
+          }
+          return parsed;
         }
       }
-    } catch (err) {
-      console.warn("Direct device portal fetch fallback to backend:", err);
-    }
+    } catch {}
   }
 
-  // 2. Standard backend fallback
-  return request<AttendanceData>("/attendance", { method: "GET" });
+  // 2. Query backend
+  const res = await request<AttendanceData>("/attendance", { method: "GET" });
+  if (res && res.subjects && res.subjects.length > 0 && typeof window !== "undefined") {
+    try {
+      localStorage.setItem("cu_cached_attendance", JSON.stringify(res));
+    } catch {}
+  }
+  return res;
 }
 
 export interface HostelPunch {
