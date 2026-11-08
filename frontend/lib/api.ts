@@ -220,6 +220,7 @@ export interface HostelPunch {
   date: string;
   punch_time?: string;
   punch_type?: string;
+  device_name?: string;
   status?: string;
 }
 
@@ -227,7 +228,10 @@ export interface HostelBiometricInfo {
   is_hostelite: boolean;
   biometric_id?: string;
   hostel_name?: string;
+  room_no?: string;
+  block_name?: string;
   last_punch?: string;
+  curfew_status?: "inside" | "outside" | "late";
   punches?: HostelPunch[];
 }
 

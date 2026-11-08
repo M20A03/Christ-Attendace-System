@@ -398,7 +398,7 @@ async def fetch_hostel_attendance(access_token: str) -> HostelBiometricInfo:
     If is_valid == 1, fetches their biometric ID and punch history.
     If the student is not a hostelite (is_valid == 0), returns is_hostelite=False.
     """
-    if not access_token or access_token.startswith("cu_sess_") or access_token.startswith("demo_"):
+    if not access_token or access_token.startswith("demo_"):
         return HostelBiometricInfo(is_hostelite=False)
 
     headers = {

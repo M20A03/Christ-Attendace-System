@@ -349,6 +349,13 @@ async def resolve_student_and_token(
     # If user_record is known and token is missing or expired, refresh it
     if user_record:
         if token and token.startswith("cu_sess_"):
+            if user_record.session and user_record.session.refresh_token_encrypted:
+                try:
+                    decrypted = crypto.decrypt_token(user_record.session.refresh_token_encrypted)
+                    if decrypted and (decrypted.startswith("eyJ") or len(decrypted) > 64):
+                        return decrypted, student, resolved_user_id
+                except Exception:
+                    pass
             return token, student, resolved_user_id
         try:
             valid_token, _ = await auth.get_or_refresh_valid_access_token(

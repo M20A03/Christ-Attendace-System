@@ -3,13 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PieChart, Calculator, Award } from "lucide-react";
+import { PieChart, Calculator, Award, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
 
-  // Page 1: Attendance, Page 2: Calculator, Page 3: Marks Card
+  // Page 1: Attendance, Page 2: Calculator, Page 3: Marks Card, Page 4: Hostel
   const navItems = [
     {
       label: "Attendance",
@@ -26,11 +26,16 @@ export const BottomNav: React.FC = () => {
       href: "/marks",
       icon: Award,
     },
+    {
+      label: "Hostel",
+      href: "/hostel",
+      icon: Building2,
+    },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-4px_24px_rgba(15,43,92,0.06)] pb-safe">
-      <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
+      <div className="max-w-md mx-auto px-2 h-16 flex items-center justify-around">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -39,7 +44,7 @@ export const BottomNav: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
-              className="relative flex flex-col items-center justify-center w-24 py-1.5 group select-none"
+              className="relative flex flex-col items-center justify-center w-20 py-1.5 group select-none"
             >
               <div className="relative p-1.5 flex items-center justify-center">
                 {isActive && (
@@ -56,7 +61,7 @@ export const BottomNav: React.FC = () => {
                 />
               </div>
               <span
-                className={`text-[11px] font-semibold tracking-tight transition-colors duration-200 mt-0.5 ${
+                className={`text-[11px] font-semibold tracking-tight transition-colors duration-200 mt-0.5 truncate max-w-full px-0.5 ${
                   isActive ? "text-[#0f2b5c]" : "text-slate-500 group-hover:text-slate-700"
                 }`}
               >

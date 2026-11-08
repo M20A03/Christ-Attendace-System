@@ -266,6 +266,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <a
+                  href="/hostel"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0f2b5c] hover:underline"
+                >
+                  <span>Open Dedicated Hostel Portal</span>
+                  <span>→</span>
+                </a>
+              </div>
             </div>
           </section>
         )}
