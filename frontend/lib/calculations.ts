@@ -109,12 +109,41 @@ export function calculateAttendanceMetrics(
   blueFormHours: number = 0,
   yellowFormHours: number = 0
 ): AttendanceMathResult {
-  const conducted = Math.max(1, total);
+  const conducted = Math.max(0, total);
   const rawAtt = Math.max(0, attended);
   const yellow = Math.max(0, yellowFormHours);
   const requestedBlue = Math.max(0, blueFormHours);
   const target = Math.min(1.0, Math.max(0.1, targetFraction));
   const targetPct = target * 100;
+
+  // Handle case when 0 classes have been conducted yet
+  if (conducted === 0) {
+    return {
+      percentage: 0,
+      rawPercentage: 0,
+      adjustedPercentage: 0,
+      classesNeeded: 0,
+      safeSkips: 0,
+      status: "safe",
+      message: "No classes conducted yet",
+      eligibility: {
+        status: "regular",
+        label: "Not Started (0 Classes)",
+        description: "Lectures have not yet commenced for this course.",
+      },
+      yellowFormHours: yellow,
+      pctWithYellow: 0,
+      blueFormEligible: false,
+      blueFormReason: "No classes conducted yet",
+      effectiveBlueHours: 0,
+      midSemEligible: true,
+      endSemEligible: true,
+      classesNeededForMidSem75: 0,
+      classesNeededForEndSem85: 0,
+      safeSkipsForMidSem75: 0,
+      safeSkipsForEndSem85: 0,
+    };
+  }
 
   // 1. Raw percentage
   const rawPct = Math.min(100, Math.round((rawAtt / conducted) * 1000) / 10);

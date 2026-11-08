@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   BookOpen,
-  Filter,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,24 +27,32 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
   const [showLogs, setShowLogs] = useState(false);
   const [logFilter, setLogFilter] = useState<"all" | "attended" | "absent">("all");
 
-  const conducted = Math.max(1, subject.total);
+  const conducted = Math.max(0, subject.total);
   const attended = Math.max(0, subject.attended);
   const missed = Math.max(0, conducted - attended);
 
+  // If 0 classes conducted, there is no shortage or bunk requirement
+  const isZeroConducted = conducted === 0;
+
   // Requirement: Minimum each subject needs 75% for Mid-Semester (CIA) & exam eligibility.
-  // Bunk calculation must start from 75%, and NOT mention 85% in the advice message!
-  const isEligible75 = subject.percentage >= 75;
-  const isHigh85 = subject.percentage >= 85;
+  const isEligible75 = !isZeroConducted && subject.percentage >= 75;
+  const isHigh85 = !isZeroConducted && subject.percentage >= 85;
 
   // Safe bunks to stay at or above 75%
-  const safeSkips75 = Math.max(0, Math.floor((attended * 100) / 75 - conducted));
+  const safeSkips75 = isZeroConducted
+    ? 0
+    : Math.max(0, Math.floor((attended * 100) / 75 - conducted));
+
   // Classes needed consecutively if below 75%
-  const neededFor75 = subject.percentage < 75
-    ? Math.ceil((75 * conducted - 100 * attended) / (100 - 75))
-    : 0;
+  const neededFor75 = isZeroConducted || subject.percentage >= 75
+    ? 0
+    : Math.ceil((75 * conducted - 100 * attended) / (100 - 75));
 
   // Clean, natural English bunk advice based strictly on 75%
   const getBunkAdvice = (): string => {
+    if (isZeroConducted) {
+      return "No classes conducted yet — no shortage";
+    }
     if (isEligible75) {
       if (safeSkips75 > 0) {
         return `Can safely bunk ${safeSkips75} ${safeSkips75 === 1 ? "class" : "classes"} (stays above 75%)`;
@@ -59,6 +66,16 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
 
   // Status styling
   const getStatusStyling = () => {
+    if (isZeroConducted) {
+      return {
+        barColor: "bg-slate-300 dark:bg-slate-700",
+        badgeBg:
+          "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+        icon: <CheckCircle2 className="w-4 h-4 text-slate-500 mr-1.5 flex-shrink-0" />,
+        adviceColor: "text-slate-600 dark:text-slate-400 font-medium",
+        label: "Not Started (0 Classes)",
+      };
+    }
     if (isHigh85) {
       return {
         barColor: "bg-emerald-500",
@@ -69,7 +86,6 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         label: "Safe (85%+)",
       };
     } else if (isEligible75) {
-      // 75% - 84.9%: Safe for Mid-Sem & Exam eligibility, NOT red danger!
       return {
         barColor: "bg-blue-500",
         badgeBg:
@@ -79,7 +95,6 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         label: "Safe (75%+)",
       };
     } else {
-      // < 75%: Shortage
       return {
         barColor: "bg-rose-500",
         badgeBg:
@@ -113,12 +128,12 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
     year: "numeric",
   }).format(new Date());
 
-  // Generate date-wise class sessions for this subject
+  // Genuine subject daily logs from portal (empty if portal does not publish individual per-hour logs)
   const allLectureLogs: SubjectDailyLog[] = useMemo(() => {
     return getSubjectLectureLogs(subject);
   }, [subject]);
 
-  // Filter logs based on student choice: all vs only attended vs only absent
+  // Filter logs based on student choice
   const filteredLogs = useMemo(() => {
     if (logFilter === "attended") {
       return allLectureLogs.filter((l) => l.status === "present");
@@ -163,7 +178,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
           <div
             className={`px-2.5 py-1 rounded-xl text-xs font-black border flex-shrink-0 font-mono ${styling.badgeBg}`}
           >
-            {subject.percentage}%
+            {isZeroConducted ? "0%" : `${subject.percentage}%`}
           </div>
         </div>
 
@@ -172,7 +187,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5 font-medium">
             <span>Conducted vs Attended</span>
             <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-              {subject.attended} / {subject.total} classes
+              {attended} / {conducted} classes
             </span>
           </div>
           <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
@@ -190,7 +205,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
             />
             <div
               className={`h-full rounded-full transition-all duration-700 ease-out ${styling.barColor}`}
-              style={{ width: `${Math.min(subject.percentage, 100)}%` }}
+              style={{ width: `${isZeroConducted ? 0 : Math.min(subject.percentage, 100)}%` }}
             />
           </div>
           <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
@@ -210,19 +225,19 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
             <span className={styling.adviceColor}>{adviceText}</span>
           </div>
 
-          {/* Toggle Daily Class Logs Button */}
+          {/* Toggle Details Button */}
           <button
             type="button"
             onClick={() => setShowLogs(!showLogs)}
             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0f2b5c] dark:text-blue-400 hover:underline select-none px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
           >
             <Clock className="w-3 h-3" />
-            <span>{showLogs ? "Hide Logs" : "Class Logs"}</span>
+            <span>{showLogs ? "Hide Details" : "Details"}</span>
             {showLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
 
-        {/* Expandable Daily Class Logs & Attendance Register */}
+        {/* Expandable Course Register Details Drawer */}
         <AnimatePresence>
           {showLogs && (
             <motion.div
@@ -237,7 +252,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <BookOpen className="w-3 h-3 text-[#0f2b5c] dark:text-blue-400" />
-                    Course Attendance Summary
+                    Official Course Summary
                   </span>
                   <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
                     Live Portal Sync
@@ -311,58 +326,57 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                 </div>
               )}
 
-              {/* Day-by-Day Historical Class Logs with Attended/Absent Filters */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Daily Class Logs
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {filteredLogs.length} of {allLectureLogs.length} classes
-                  </span>
-                </div>
+              {/* Real Daily Logs (if provided by university portal) or honest notice */}
+              {allLectureLogs.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Daily Class Logs
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {filteredLogs.length} of {allLectureLogs.length} classes
+                    </span>
+                  </div>
 
-                {/* Filter Selector: All vs Only Attended vs Only Absent */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setLogFilter("all")}
-                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                      logFilter === "all"
-                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-bold"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    All ({allLectureLogs.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLogFilter("attended")}
-                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                      logFilter === "attended"
-                        ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                        : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                    }`}
-                  >
-                    Attended ({attended})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLogFilter("absent")}
-                    className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                      logFilter === "absent"
-                        ? "bg-rose-600 text-white shadow-2xs font-bold"
-                        : "text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                    }`}
-                  >
-                    Absent ({missed})
-                  </button>
-                </div>
+                  {/* Filter Selector */}
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setLogFilter("all")}
+                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
+                        logFilter === "all"
+                          ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-bold"
+                          : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      All ({allLectureLogs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogFilter("attended")}
+                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
+                        logFilter === "attended"
+                          ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                          : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                      }`}
+                    >
+                      Attended ({attended})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogFilter("absent")}
+                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
+                        logFilter === "absent"
+                          ? "bg-rose-600 text-white shadow-2xs font-bold"
+                          : "text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      }`}
+                    >
+                      Absent ({missed})
+                    </button>
+                  </div>
 
-                {/* Class Session Items */}
-                <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-0.5 scrollbar-thin">
-                  {filteredLogs.length > 0 ? (
-                    filteredLogs.map((log, lIdx) => {
+                  <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-0.5 scrollbar-thin">
+                    {filteredLogs.map((log, lIdx) => {
                       const isPresent = log.status === "present";
                       return (
                         <div
@@ -391,11 +405,6 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                                   </>
                                 )}
                               </div>
-                              {log.topic && (
-                                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate max-w-[200px]">
-                                  {log.topic}
-                                </div>
-                              )}
                             </div>
                           </div>
 
@@ -410,14 +419,18 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                           </span>
                         </div>
                       );
-                    })
-                  ) : (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-center">
-                      No {logFilter === "attended" ? "attended" : logFilter === "absent" ? "absent" : ""} classes in this filter.
-                    </p>
-                  )}
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : isZeroConducted ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-center">
+                  Classes have not commenced for this course yet (0 classes conducted). Attendance will register once the first lecture takes place.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-center">
+                  CUE portal records cumulative attendance for this course ({attended} attended of {conducted} held). Individual lecture timestamps are stored in internal faculty registers and are not published through the student portal API.
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
