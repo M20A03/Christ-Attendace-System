@@ -196,7 +196,6 @@ export default function DashboardPage() {
                 <SubjectCard
                   key={idx}
                   subject={sub}
-                  todayClasses={data.today_classes}
                 />
               ))}
             </div>

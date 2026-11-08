@@ -1,35 +1,21 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { SubjectAttendance, SubjectDailyLog, TodayClass } from "@/lib/api";
-import { getSubjectLectureLogs } from "@/lib/timetable";
+import React from "react";
+import { SubjectAttendance } from "@/lib/api";
 import {
   CheckCircle2,
   AlertCircle,
   User,
-  Clock,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  BookOpen,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface SubjectCardProps {
   subject: SubjectAttendance;
-  todayClasses?: TodayClass[];
 }
 
-export const SubjectCard: React.FC<SubjectCardProps> = ({
-  subject,
-  todayClasses = [],
-}) => {
-  const [showLogs, setShowLogs] = useState(false);
-  const [logFilter, setLogFilter] = useState<"all" | "attended" | "absent">("all");
-
+export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
   const conducted = Math.max(0, subject.total);
   const attended = Math.max(0, subject.attended);
-  const missed = Math.max(0, conducted - attended);
 
   // If 0 classes conducted, there is no shortage or bunk requirement
   const isZeroConducted = conducted === 0;
@@ -108,42 +94,6 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
 
   const styling = getStatusStyling();
 
-  // Find genuine today's classes matching this subject (if today has one)
-  const normSubName = subject.name.trim().toLowerCase();
-  const normSubCode = (subject.subject_code || "").trim().toLowerCase();
-  const matchingTodayClasses = todayClasses.filter((c) => {
-    const normCls = c.subject.trim().toLowerCase();
-    return (
-      normSubName.includes(normCls) ||
-      normCls.includes(normSubName) ||
-      (normSubCode && (normCls.includes(normSubCode) || normSubCode.includes(normCls)))
-    );
-  });
-
-  // Authentic date display
-  const todayFormatted = new Intl.DateTimeFormat("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date());
-
-  // Genuine subject daily logs from portal (empty if portal does not publish individual per-hour logs)
-  const allLectureLogs: SubjectDailyLog[] = useMemo(() => {
-    return getSubjectLectureLogs(subject);
-  }, [subject]);
-
-  // Filter logs based on student choice
-  const filteredLogs = useMemo(() => {
-    if (logFilter === "attended") {
-      return allLectureLogs.filter((l) => l.status === "present");
-    }
-    if (logFilter === "absent") {
-      return allLectureLogs.filter((l) => l.status === "absent");
-    }
-    return allLectureLogs;
-  }, [allLectureLogs, logFilter]);
-
   return (
     <motion.div
       whileHover={{ y: -2 }}
@@ -218,222 +168,11 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
       </div>
 
       {/* Actionable Skip / Need Status line */}
-      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center pr-2">
-            {styling.icon}
-            <span className={styling.adviceColor}>{adviceText}</span>
-          </div>
-
-          {/* Toggle Details Button */}
-          <button
-            type="button"
-            onClick={() => setShowLogs(!showLogs)}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0f2b5c] dark:text-blue-400 hover:underline select-none px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
-          >
-            <Clock className="w-3 h-3" />
-            <span>{showLogs ? "Hide Details" : "Details"}</span>
-            {showLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
+      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="flex items-center text-xs">
+          {styling.icon}
+          <span className={styling.adviceColor}>{adviceText}</span>
         </div>
-
-        {/* Expandable Course Register Details Drawer */}
-        <AnimatePresence>
-          {showLogs && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden pt-2 border-t border-slate-100 dark:border-slate-800/60 space-y-3"
-            >
-              {/* Official Course Register Breakdown */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/70 dark:border-slate-700/60">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <BookOpen className="w-3 h-3 text-[#0f2b5c] dark:text-blue-400" />
-                    Official Course Summary
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                    Live Portal Sync
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-400 block font-medium">Conducted</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 font-mono text-sm">
-                      {conducted}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-medium">Attended</span>
-                    <span className="font-bold text-emerald-700 dark:text-emerald-300 font-mono text-sm">
-                      {attended}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                    <span className="text-[10px] text-rose-500 block font-medium">Missed</span>
-                    <span className="font-bold text-rose-600 dark:text-rose-400 font-mono text-sm">
-                      {missed}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">Safe bunks to keep 75%:</span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                    {safeSkips75} {safeSkips75 === 1 ? "class" : "classes"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Today's Scheduled Class (if today has one) */}
-              {matchingTodayClasses.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Today's Session ({todayFormatted})
-                  </span>
-                  {matchingTodayClasses.map((cls, cIdx) => (
-                    <div
-                      key={cIdx}
-                      className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs shadow-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-[#0f2b5c] dark:text-blue-400" />
-                        <div>
-                          <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                            {todayFormatted}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                            {cls.time || "Scheduled Lecture"}
-                          </div>
-                        </div>
-                      </div>
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase ${
-                          cls.status === "present"
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40"
-                            : cls.status === "absent"
-                            ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40"
-                            : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40"
-                        }`}
-                      >
-                        {cls.status === "present" ? "Attended" : cls.status === "absent" ? "Absent" : "Scheduled"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Real Daily Logs (if provided by university portal) or honest notice */}
-              {allLectureLogs.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                      Daily Class Logs
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {filteredLogs.length} of {allLectureLogs.length} classes
-                    </span>
-                  </div>
-
-                  {/* Filter Selector */}
-                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setLogFilter("all")}
-                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                        logFilter === "all"
-                          ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-bold"
-                          : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                      }`}
-                    >
-                      All ({allLectureLogs.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLogFilter("attended")}
-                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                        logFilter === "attended"
-                          ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                          : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                      }`}
-                    >
-                      Attended ({attended})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLogFilter("absent")}
-                      className={`flex-1 py-1 px-2 rounded-lg text-center transition-all text-[11px] ${
-                        logFilter === "absent"
-                          ? "bg-rose-600 text-white shadow-2xs font-bold"
-                          : "text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      }`}
-                    >
-                      Absent ({missed})
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-0.5 scrollbar-thin">
-                    {filteredLogs.map((log, lIdx) => {
-                      const isPresent = log.status === "present";
-                      return (
-                        <div
-                          key={lIdx}
-                          className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between text-xs"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                                isPresent
-                                  ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                                  : "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
-                              }`}
-                            >
-                              {isPresent ? "P" : "A"}
-                            </span>
-                            <div>
-                              <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                <span>{log.date}</span>
-                                {log.time && (
-                                  <>
-                                    <span className="text-[10px] font-mono text-slate-400 font-normal">•</span>
-                                    <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                                      {log.time}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
-                              isPresent
-                                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40"
-                                : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40"
-                            }`}
-                          >
-                            {isPresent ? "Attended" : "Absent"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : isZeroConducted ? (
-                <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-center">
-                  Classes have not commenced for this course yet (0 classes conducted). Attendance will register once the first lecture takes place.
-                </p>
-              ) : (
-                <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 text-center">
-                  CUE portal records cumulative attendance for this course ({attended} attended of {conducted} held). Individual lecture timestamps are stored in internal faculty registers and are not published through the student portal API.
-                </p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </motion.div>
   );
