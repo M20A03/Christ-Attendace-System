@@ -22,7 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefresh,
   isRefreshing = false,
 }) => {
-  const [isInstalled, setIsInstalled] = useState(true);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     setIsInstalled(isAppInstalled());

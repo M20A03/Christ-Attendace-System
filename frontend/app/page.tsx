@@ -32,7 +32,7 @@ export default function LandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isNative, setIsNative] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(true);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
 
   // Form fields for web fallback
