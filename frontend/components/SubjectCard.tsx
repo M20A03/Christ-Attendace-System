@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { SubjectAttendance, SubjectDailyLog, TodayClass } from "@/lib/api";
+import {
+  generateWeeklyTimetable,
+  getSubjectWeeklyDays,
+  getSubjectDayWiseLogs,
+} from "@/lib/timetable";
 import {
   CheckCircle2,
   AlertCircle,
@@ -10,7 +15,6 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
-  MapPin,
   BookOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,9 +22,14 @@ import { motion, AnimatePresence } from "framer-motion";
 interface SubjectCardProps {
   subject: SubjectAttendance;
   todayClasses?: TodayClass[];
+  allSubjects?: SubjectAttendance[];
 }
 
-export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses = [] }) => {
+export const SubjectCard: React.FC<SubjectCardProps> = ({
+  subject,
+  todayClasses = [],
+  allSubjects = [],
+}) => {
   const [showLogs, setShowLogs] = useState(false);
 
   const conducted = Math.max(1, subject.total);
@@ -108,10 +117,23 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses 
     year: "numeric",
   }).format(new Date());
 
-  // Genuine subject daily logs from portal (cleanse any fake strings if any were passed)
+  // Genuine subject daily logs from portal (cleanse any fake room strings)
   const cleanDailyLogs: SubjectDailyLog[] = (subject.daily_logs || []).filter(
     (l) => !l.room?.includes("402") && !l.room?.toLowerCase().includes("central block")
   );
+
+  // Compute which days of the week this class meets
+  const weeklySlots = useMemo(() => {
+    const subjectsToUse = allSubjects.length > 0 ? allSubjects : [subject];
+    const weeklySchedule = generateWeeklyTimetable(subjectsToUse, todayClasses);
+    return getSubjectWeeklyDays(subject, weeklySchedule);
+  }, [subject, allSubjects, todayClasses]);
+
+  // Derive day-wise class history on the actual scheduled dates
+  const dayWiseLogs: SubjectDailyLog[] = useMemo(() => {
+    if (cleanDailyLogs.length > 0) return cleanDailyLogs;
+    return getSubjectDayWiseLogs(subject, weeklySlots);
+  }, [cleanDailyLogs, subject, weeklySlots]);
 
   return (
     <motion.div
@@ -216,6 +238,27 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses 
               transition={{ duration: 0.2 }}
               className="overflow-hidden pt-2 border-t border-slate-100 dark:border-slate-800/60 space-y-3"
             >
+              {/* Which Days This Class Meets Banner */}
+              {weeklySlots.length > 0 && (
+                <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/40 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-[#0f2b5c] dark:text-blue-300 text-[11px] uppercase tracking-wider mb-1">
+                    <Calendar className="w-3 h-3 text-[#0f2b5c] dark:text-blue-400" />
+                    <span>Weekly Class Schedule</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {weeklySlots.map((slot, sIdx) => (
+                      <span
+                        key={sIdx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white dark:bg-slate-900 border border-blue-200/50 dark:border-blue-800/50 text-slate-800 dark:text-slate-200 shadow-2xs"
+                      >
+                        <span className="font-bold text-[#0f2b5c] dark:text-blue-400">{slot.day}:</span>
+                        <span>{slot.time}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Official Course Register Breakdown */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/70 dark:border-slate-700/60">
                 <div className="flex items-center justify-between mb-2">
@@ -257,11 +300,11 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses 
                 </div>
               </div>
 
-              {/* Today's Scheduled Lectures (from authentic timetable if scheduled today) */}
+              {/* Today's Scheduled Class (if scheduled today) */}
               {matchingTodayClasses.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Today's Scheduled Class ({todayFormatted})
+                    Today's Session ({todayFormatted})
                   </span>
                   {matchingTodayClasses.map((cls, cIdx) => (
                     <div
@@ -295,13 +338,19 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses 
                 </div>
               )}
 
-              {/* Detailed Historical Logs (if provided by official portal API) */}
-              {cleanDailyLogs.length > 0 ? (
-                <div className="space-y-1.5">
+              {/* Day-by-Day Historical Class Logs on Actual Scheduled Dates */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Recorded Lecture Sessions
+                    Day-Wise Lecture Logs
                   </span>
-                  {cleanDailyLogs.map((log, lIdx) => {
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {dayWiseLogs.length} {dayWiseLogs.length === 1 ? "session" : "sessions"} recorded
+                  </span>
+                </div>
+
+                {dayWiseLogs.length > 0 ? (
+                  dayWiseLogs.map((log, lIdx) => {
                     const isPresent = log.status === "present";
                     return (
                       <div
@@ -349,13 +398,13 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject, todayClasses 
                         </span>
                       </div>
                     );
-                  })}
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-                  Aggregate course hours ({subject.attended} / {subject.total}) synchronized live with CUE portal. Individual period timestamps update as faculty submit each daily register.
-                </p>
-              )}
+                  })
+                ) : (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 italic bg-white dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+                    No individual logs recorded yet.
+                  </p>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
