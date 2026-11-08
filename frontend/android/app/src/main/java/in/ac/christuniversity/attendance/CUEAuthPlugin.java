@@ -59,7 +59,7 @@ public class CUEAuthPlugin extends Plugin {
         @JavascriptInterface
         public void onToken(String token) {
             if (token != null && isJwtToken(token)) {
-                Log.d(TAG, "Bridge captured JWT token!");
+                Log.d(TAG, "Bridge captured access token!");
                 deliverTokenAndClose(token);
             }
         }
@@ -81,7 +81,7 @@ public class CUEAuthPlugin extends Plugin {
         }
 
         final String finalToken = clean;
-        Log.i(TAG, "Delivering token and automatically closing ESPRO portal...");
+        Log.i(TAG, "Delivered valid access token! Automatically closing ESPRO login window...");
 
         if (scannerHandler != null && scannerRunnable != null) {
             scannerHandler.removeCallbacks(scannerRunnable);
@@ -108,32 +108,45 @@ public class CUEAuthPlugin extends Plugin {
 
     private static final String INJECT_SCRIPT =
         "(function() {" +
-        "  function checkToken(val) {" +
-        "    if (typeof val === 'string' && val.length > 50 && val.indexOf('eyJ') === 0) {" +
-        "      try { window.CUEBridge.onToken(val); } catch(e) {}" +
+        "  function inspectToken(val) {" +
+        "    if (!val) return;" +
+        "    if (typeof val === 'string') {" +
+        "      val = val.trim();" +
+        "      if (val.indexOf('{') === 0) {" +
+        "        try {" +
+        "          var p = JSON.parse(val);" +
+        "          if (p && p.access_token && typeof p.access_token === 'string' && p.access_token.indexOf('eyJ') === 0) {" +
+        "            try { window.CUEBridge.onToken(p.access_token); return; } catch(e) {}" +
+        "          }" +
+        "        } catch(e) {}" +
+        "      }" +
+        "      if (val.length > 50 && val.indexOf('eyJ') === 0) {" +
+        "        try { window.CUEBridge.onToken(val); } catch(e) {}" +
+        "      }" +
         "    }" +
         "  }" +
         "  function scanStorage() {" +
         "    try {" +
-        "      for (var i = 0; i < sessionStorage.length; i++) {" +
-        "        var k = sessionStorage.key(i);" +
-        "        checkToken(sessionStorage.getItem(k));" +
-        "      }" +
-        "      for (var j = 0; j < localStorage.length; j++) {" +
-        "        var lk = localStorage.key(j);" +
-        "        checkToken(localStorage.getItem(lk));" +
+        "      var stores = [sessionStorage, localStorage];" +
+        "      for (var s = 0; s < stores.length; s++) {" +
+        "        var store = stores[s];" +
+        "        for (var i = 0; i < store.length; i++) {" +
+        "          var k = store.key(i);" +
+        "          var val = store.getItem(k);" +
+        "          inspectToken(val);" +
+        "        }" +
         "      }" +
         "    } catch(e) {}" +
         "  }" +
         "  try {" +
         "    var origSetItem = sessionStorage.setItem;" +
         "    sessionStorage.setItem = function(k, v) {" +
-        "      checkToken(v);" +
+        "      inspectToken(v);" +
         "      return origSetItem.apply(this, arguments);" +
         "    };" +
         "    var origLocalSet = localStorage.setItem;" +
         "    localStorage.setItem = function(k, v) {" +
-        "      checkToken(v);" +
+        "      inspectToken(v);" +
         "      return origLocalSet.apply(this, arguments);" +
         "    };" +
         "  } catch(e) {}" +
@@ -141,8 +154,10 @@ public class CUEAuthPlugin extends Plugin {
         "    var origOpen = XMLHttpRequest.prototype.open;" +
         "    var origSetHeader = XMLHttpRequest.prototype.setRequestHeader;" +
         "    XMLHttpRequest.prototype.setRequestHeader = function(h, v) {" +
-        "      if (h && h.toLowerCase() === 'authorization' && v && v.indexOf('Bearer eyJ') === 0) {" +
-        "        checkToken(v.substring(7));" +
+        "      if (h && (h.toLowerCase() === 'authorization' || h.toLowerCase() === 'dpop') && v) {" +
+        "        var parts = v.split(' ');" +
+        "        var tok = parts.length > 1 ? parts[1] : v;" +
+        "        if (tok && tok.indexOf('eyJ') === 0) inspectToken(tok);" +
         "      }" +
         "      return origSetHeader.apply(this, arguments);" +
         "    };" +
@@ -152,16 +167,18 @@ public class CUEAuthPlugin extends Plugin {
         "    window.fetch = function(url, init) {" +
         "      if (init && init.headers) {" +
         "        var h = init.headers;" +
-        "        var auth = (h instanceof Headers) ? h.get('authorization') : (h['Authorization'] || h['authorization']);" +
-        "        if (auth && auth.indexOf('Bearer eyJ') === 0) {" +
-        "          checkToken(auth.substring(7));" +
+        "        var auth = (h instanceof Headers) ? (h.get('authorization') || h.get('dpop')) : (h['Authorization'] || h['authorization'] || h['DPoP'] || h['dpop']);" +
+        "        if (auth) {" +
+        "          var parts = auth.split(' ');" +
+        "          var tok = parts.length > 1 ? parts[1] : auth;" +
+        "          if (tok && tok.indexOf('eyJ') === 0) inspectToken(tok);" +
         "        }" +
         "      }" +
         "      return origFetch.apply(this, arguments);" +
         "    };" +
         "  } catch(e) {}" +
         "  scanStorage();" +
-        "  setInterval(scanStorage, 400);" +
+        "  setInterval(scanStorage, 350);" +
         "})();";
 
     @PluginMethod
@@ -210,13 +227,21 @@ public class CUEAuthPlugin extends Plugin {
                         webView.evaluateJavascript(
                             "(function() {" +
                             "  try {" +
-                            "    for (var i = 0; i < sessionStorage.length; i++) {" +
-                            "      var v = sessionStorage.getItem(sessionStorage.key(i));" +
-                            "      if (v && v.length > 50 && v.indexOf('eyJ') === 0) return v;" +
-                            "    }" +
-                            "    for (var j = 0; j < localStorage.length; j++) {" +
-                            "      var lv = localStorage.getItem(localStorage.key(j));" +
-                            "      if (lv && lv.length > 50 && lv.indexOf('eyJ') === 0) return lv;" +
+                            "    var stores = [sessionStorage, localStorage];" +
+                            "    for (var s = 0; s < stores.length; s++) {" +
+                            "      var store = stores[s];" +
+                            "      for (var i = 0; i < store.length; i++) {" +
+                            "        var k = store.key(i);" +
+                            "        var val = store.getItem(k);" +
+                            "        if (!val) continue;" +
+                            "        if (val.indexOf('{') === 0) {" +
+                            "          try {" +
+                            "            var p = JSON.parse(val);" +
+                            "            if (p && p.access_token && p.access_token.indexOf('eyJ') === 0) return p.access_token;" +
+                            "          } catch(e) {}" +
+                            "        }" +
+                            "        if (val.length > 50 && val.indexOf('eyJ') === 0 && !k.toLowerCase().includes('id_token')) return val;" +
+                            "      }" +
                             "    }" +
                             "  } catch(e) {}" +
                             "  return '';" +
@@ -254,10 +279,12 @@ public class CUEAuthPlugin extends Plugin {
                         if (request != null && request.getRequestHeaders() != null) {
                             Map<String, String> headers = request.getRequestHeaders();
                             for (Map.Entry<String, String> entry : headers.entrySet()) {
-                                if (entry.getKey().equalsIgnoreCase("Authorization")) {
+                                String key = entry.getKey();
+                                if (key.equalsIgnoreCase("Authorization") || key.equalsIgnoreCase("DPoP")) {
                                     String auth = entry.getValue();
-                                    if (auth != null && auth.toLowerCase().startsWith("bearer ")) {
-                                        String candidate = auth.substring(7).trim();
+                                    if (auth != null) {
+                                        String[] parts = auth.split(" ");
+                                        String candidate = parts.length > 1 ? parts[1].trim() : auth.trim();
                                         if (isJwtToken(candidate)) {
                                             deliverTokenAndClose(candidate);
                                         }
@@ -295,8 +322,6 @@ public class CUEAuthPlugin extends Plugin {
 
     /**
      * Directly calls Christ University ESPro internal APIs on port 84 from the user's phone.
-     * Bypasses any external cloud firewall or datacenter blocking since requests originate from
-     * the student's Indian mobile / Wi-Fi IP address.
      */
     @PluginMethod
     public void fetchLiveAttendance(PluginCall call) {
@@ -311,7 +336,7 @@ public class CUEAuthPlugin extends Plugin {
                 // Step 1: getStudentSemesters
                 String semUrl = PORTAL_BASE + "/ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters";
                 String semRes = makePortalPost(semUrl, "{}", token);
-                Log.d(TAG, "getStudentSemesters response: " + (semRes.length() > 200 ? semRes.substring(0, 200) : semRes));
+                Log.d(TAG, "getStudentSemesters response: " + semRes);
 
                 JSONArray sessions = null;
                 if (semRes.trim().startsWith("[")) {
