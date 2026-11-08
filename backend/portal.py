@@ -313,7 +313,7 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
             sem_url = f"{PORTAL_API_BASE}/ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters"
             logger.info("Calling CUE portal getStudentSemesters: %s", sem_url)
             sem_res = await client.post(sem_url, json={}, headers=headers)
-            logger.info("getStudentSemesters response status: %d", sem_res.status_code)
+            logger.info("getStudentSemesters status: %d, response body: %s", sem_res.status_code, sem_res.text)
             
             if sem_res.status_code == 200:
                 sem_data = sem_res.json()
@@ -366,6 +366,7 @@ async def fetch_student_attendance(access_token: str, student: StudentInfo) -> A
             for fallback_url in kp_urls:
                 try:
                     fallback_res = await client.post(fallback_url, json={}, headers=headers)
+                    logger.info("Fallback %s status: %d, body: %s", fallback_url, fallback_res.status_code, fallback_res.text[:200])
                     if fallback_res.status_code == 200 and fallback_res.json():
                         logger.info("Successfully fetched attendance from fallback: %s", fallback_url)
                         return parse_portal_attendance_data(fallback_res.json(), student)
