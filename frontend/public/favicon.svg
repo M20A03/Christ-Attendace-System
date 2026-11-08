@@ -1,15 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
     <linearGradient id="carbonBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0b0f19"/>
-      <stop offset="100%" stop-color="#0f172a"/>
+      <stop offset="0%" stop-color="#090D1A"/>
+      <stop offset="100%" stop-color="#060A14"/>
     </linearGradient>
   </defs>
   <!-- Sleek Dark Squircle -->
-  <rect width="64" height="64" rx="14" fill="url(#carbonBg)" stroke="#334155" stroke-width="2"/>
+  <rect width="64" height="64" rx="14" fill="url(#carbonBg)" stroke="#1e293b" stroke-width="1.5"/>
+  <!-- Status Beacon -->
+  <circle cx="32" cy="18" r="3" fill="#10b981" opacity="0.4"/>
+  <circle cx="32" cy="18" r="1.8" fill="#34d399"/>
   <!-- Typography "CHRIST" -->
-  <text x="32" y="32" font-family="monospace, -apple-system, sans-serif" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">CHRIST</text>
-  <!-- Technical Status Dot & Sub-tag -->
-  <circle cx="23" cy="44" r="2.5" fill="#10b981"/>
-  <text x="36" y="46.5" font-family="monospace, -apple-system, sans-serif" font-size="7.5" font-weight="700" fill="#94a3b8" text-anchor="middle" letter-spacing="0.5">SYS</text>
+  <text x="32" y="37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">CHRIST</text>
+  <!-- Technical Sub-tag -->
+  <rect x="13" y="44" width="38" height="9" rx="3.5" fill="#0f172a" stroke="#10b981" stroke-width="0.8" stroke-opacity="0.6"/>
+  <text x="32" y="50.8" font-family="monospace, sans-serif" font-size="5.5" font-weight="700" fill="#34d399" text-anchor="middle" letter-spacing="0.5">ATTENDANCE</text>
 </svg>

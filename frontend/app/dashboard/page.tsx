@@ -204,8 +204,8 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Hostel Biometric Attendance (Visible ONLY for Hostel Residents) */}
-        {hostelData?.is_hostelite && (
+        {/* Hostel Biometric Attendance (Visible ONLY for Real Verified Hostel Residents) */}
+        {hostelData?.is_hostelite && hostelData.biometric_id && !hostelData.biometric_id.startsWith("BIO-") && (
           <section className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">

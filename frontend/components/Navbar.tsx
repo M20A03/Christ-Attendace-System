@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { StudentInfo } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
 import { LogOut, RefreshCw, ShieldCheck, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "./ThemeToggle";
+import { isAppInstalled } from "@/lib/platform";
 
 interface NavbarProps {
   student?: StudentInfo | null;
@@ -21,6 +22,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefresh,
   isRefreshing = false,
 }) => {
+  const [isInstalled, setIsInstalled] = useState(true);
+
+  useEffect(() => {
+    setIsInstalled(isAppInstalled());
+  }, []);
+
   const handleLogout = async () => {
     if (confirm("Are you sure you want to sign out?")) {
       await logoutUser();
@@ -65,13 +72,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Theme Toggle Button */}
           <ThemeToggle />
 
-          <Link
-            href="/download"
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200/60 dark:border-slate-800"
-            title="Download App for Android or iPhone"
-          >
-            <Download className="w-4 h-4" />
-          </Link>
+          {!isInstalled && (
+            <Link
+              href="/download"
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200/60 dark:border-slate-800"
+              title="Download App for Android or iPhone"
+            >
+              <Download className="w-4 h-4" />
+            </Link>
+          )}
 
           {onRefresh && (
             <motion.button

@@ -3,13 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PieChart, Calculator, Award, Building2, MessageSquare } from "lucide-react";
+import { PieChart, Calculator, Award, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
 
-  // Page 1: Attendance, Page 2: Calculator, Page 3: Marks Card, Page 4: Hostel, Page 5: Confessions
+  // Page 1: Attendance, Page 2: Calculator, Page 3: Marks Card, Page 4: Confessions
   const navItems = [
     {
       label: "Attendance",
@@ -25,11 +25,6 @@ export const BottomNav: React.FC = () => {
       label: "Marks Card",
       href: "/marks",
       icon: Award,
-    },
-    {
-      label: "Hostel",
-      href: "/hostel",
-      icon: Building2,
     },
     {
       label: "Confessions",

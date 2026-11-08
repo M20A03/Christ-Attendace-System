@@ -22,8 +22,10 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function DownloadPage() {
   const [activePlatform, setActivePlatform] = useState<"android" | "ios">("android");
 
-  const APK_DOWNLOAD_URL =
-    "https://github.com/M20A03/Christ-Attendace-System/releases/download/latest-apk/ChristAttendance.apk";
+  // Primary fast direct download hosted on Vercel CDN, plus GitHub raw mirror
+  const APK_DOWNLOAD_URL = "/ChristAttendance.apk";
+  const GITHUB_RAW_URL =
+    "https://raw.githubusercontent.com/M20A03/Christ-Attendace-System/release-apk/ChristAttendance.apk";
   const GITHUB_RELEASE_URL =
     "https://github.com/M20A03/Christ-Attendace-System/releases/tag/latest-apk";
 
@@ -153,14 +155,23 @@ export default function DownloadPage() {
                   <span>Download APK (Direct)</span>
                 </a>
 
-                <div className="text-center">
+                <div className="flex items-center justify-center gap-4 text-center pt-1">
+                  <a
+                    href={GITHUB_RAW_URL}
+                    download="ChristAttendance.apk"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Mirror Link (GitHub)</span>
+                  </a>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
                   <a
                     href={GITHUB_RELEASE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                   >
-                    <span>View GitHub Release</span>
+                    <span>Release Notes</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>

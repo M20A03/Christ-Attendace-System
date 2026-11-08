@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Share, PlusSquare, X, Download, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
+import { isAppInstalled } from "@/lib/platform";
 
 export const PWAInstallPrompt: React.FC = () => {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -10,18 +11,13 @@ export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    // Check if already in standalone mode (PWA installed on home screen)
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone ||
-      document.referrer.includes("android-app://");
-
-    if (isStandalone) {
+    // If running inside Capacitor APK or PWA standalone, never show install prompt
+    if (isAppInstalled()) {
       return;
     }
 
-    // Check if user has dismissed previously in this session
-    const dismissed = sessionStorage.getItem("pwa_prompt_dismissed");
+    // Check if user has dismissed previously
+    const dismissed = sessionStorage.getItem("pwa_prompt_dismissed") || localStorage.getItem("cu_prompt_dismissed");
     if (dismissed) {
       return;
     }
@@ -32,8 +28,10 @@ export const PWAInstallPrompt: React.FC = () => {
     setIsIOS(isIosDevice);
 
     if (isIosDevice) {
-      // Delay prompt slightly for natural UX
-      const timer = setTimeout(() => setShowPrompt(true), 2500);
+      // Delay prompt slightly for natural UX on browser
+      const timer = setTimeout(() => {
+        if (!isAppInstalled()) setShowPrompt(true);
+      }, 3000);
       return () => clearTimeout(timer);
     }
 
@@ -41,19 +39,15 @@ export const PWAInstallPrompt: React.FC = () => {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowPrompt(true);
+      if (!isAppInstalled()) {
+        setShowPrompt(true);
+      }
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Fallback timer for Android if browser didn't fire event immediately
-    const fallbackTimer = setTimeout(() => {
-      setShowPrompt(true);
-    }, 3500);
-
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      clearTimeout(fallbackTimer);
     };
   }, []);
 
@@ -63,6 +57,9 @@ export const PWAInstallPrompt: React.FC = () => {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
         setShowPrompt(false);
+        try {
+          localStorage.setItem("cu_app_installed", "true");
+        } catch {}
       }
       setDeferredPrompt(null);
     }
@@ -70,7 +67,10 @@ export const PWAInstallPrompt: React.FC = () => {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    sessionStorage.setItem("pwa_prompt_dismissed", "true");
+    try {
+      sessionStorage.setItem("pwa_prompt_dismissed", "true");
+      localStorage.setItem("cu_prompt_dismissed", "true");
+    } catch {}
   };
 
   if (!showPrompt) return null;

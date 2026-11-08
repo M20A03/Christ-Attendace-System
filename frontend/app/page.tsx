@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { isAppInstalled } from "@/lib/platform";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -27,14 +28,16 @@ export default function LandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isNative, setIsNative] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(true);
 
   // Form fields for web fallback
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Check if running on Android/iOS native Capacitor wrapper
+  // Check if running on Android/iOS native Capacitor wrapper or standalone PWA
   useEffect(() => {
+    setIsInstalled(isAppInstalled());
     import("@/lib/nativeAuth").then(({ isNativeApp }) => {
       setIsNative(isNativeApp());
     });
@@ -132,13 +135,15 @@ export default function LandingPage() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
-          <Link
-            href="/download"
-            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-xs flex items-center gap-1.5"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Get App</span>
-          </Link>
+          {!isInstalled && (
+            <Link
+              href="/download"
+              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-xs flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Get App</span>
+            </Link>
+          )}
 
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -169,31 +174,33 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Dedicated Android APK & iOS Install Banner */}
-        <Link
-          href="/download"
-          className="w-full mb-6 p-4 rounded-3xl bg-slate-900 dark:bg-slate-850 text-white flex items-center justify-between border border-slate-800 shadow-md hover:border-slate-700 transition-all group select-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
-              <Download className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold tracking-tight">
-                  Download / Install App
-                </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-slate-950">
-                  Android & iOS
-                </span>
+        {/* Dedicated Android APK & iOS Install Banner (Only shown on mobile/desktop web browsers) */}
+        {!isInstalled && (
+          <Link
+            href="/download"
+            className="w-full mb-6 p-4 rounded-3xl bg-slate-900 dark:bg-slate-850 text-white flex items-center justify-between border border-slate-800 shadow-md hover:border-slate-700 transition-all group select-none"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
+                <Download className="w-5 h-5" />
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Download APK for Android • 3-step setup for iPhone
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-extrabold tracking-tight">
+                    Download / Install App
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-slate-950">
+                    Android & iOS
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Download APK for Android • 3-step setup for iPhone
+                </p>
+              </div>
             </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-        </Link>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+          </Link>
+        )}
 
         {/* Login Card */}
         <div className="w-full bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800/80 p-6 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] space-y-5">

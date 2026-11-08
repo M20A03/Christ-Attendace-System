@@ -221,22 +221,12 @@ export default function HostelPage() {
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                    Curfew Lockdown
+                    Gate Curfew
                   </span>
                   <span className="text-sm font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono">
                     09:30 PM
                   </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">Night Gate Closure</span>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                    Library Late Pass
-                  </span>
-                  <span className="text-sm font-black text-blue-600 dark:text-blue-400 mt-1 block font-mono">
-                    10:30 PM
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">With Reading Pass</span>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
@@ -251,13 +241,13 @@ export default function HostelPage() {
               </div>
             </div>
 
-            {/* Curfew Status Countdown Card */}
+            {/* Curfew Protocol Card */}
             <div className="bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase tracking-wider">
-                    Hostel Gate Curfew Protocol
+                    Hostel Biometric Protocol
                   </h3>
                 </div>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -273,7 +263,7 @@ export default function HostelPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  All residents must punch their biometric sensor before <strong>09:30 PM</strong> daily. Late punches require warden sign-off on the physical register. If studying in the central campus library, punch-in is allowed until <strong>10:30 PM</strong> with library pass verification.
+                  Hostel residents punch their biometric sensor at the campus turnstile before <strong>09:30 PM</strong> daily. Day scholars are fully exempt from hostel punch requirements.
                 </p>
               </div>
             </div>
