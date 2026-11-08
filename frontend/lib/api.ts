@@ -252,9 +252,7 @@ export async function fetchHostelAttendance(): Promise<HostelBiometricInfo> {
       const cached = localStorage.getItem("cu_cached_hostel");
       if (cached) {
         const parsed: HostelBiometricInfo = JSON.parse(cached);
-        if (parsed?.biometric_id?.startsWith("BIO-")) {
-          localStorage.removeItem("cu_cached_hostel");
-        } else if (parsed && typeof parsed.is_hostelite === "boolean") {
+        if (parsed && typeof parsed.is_hostelite === "boolean") {
           return parsed;
         }
       }

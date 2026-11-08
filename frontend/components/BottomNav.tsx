@@ -1,15 +1,29 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PieChart, Calculator, MessageSquare } from "lucide-react";
+import { PieChart, Calculator, Building2, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
+  const [isHostelite, setIsHostelite] = useState(false);
 
-  // Page 1: Attendance, Page 2: Safe Skips & Calculator, Page 3: Confessions
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("cu_cached_hostel");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.is_hostelite === true) {
+          setIsHostelite(true);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Standard student items: Attendance, Calculator, Confessions
+  // If verified hostel resident, includes Hostel Biometrics tab
   const navItems = [
     {
       label: "Attendance",
@@ -21,6 +35,15 @@ export const BottomNav: React.FC = () => {
       href: "/calculator",
       icon: Calculator,
     },
+    ...(isHostelite
+      ? [
+          {
+            label: "Hostel",
+            href: "/hostel",
+            icon: Building2,
+          },
+        ]
+      : []),
     {
       label: "Confessions",
       href: "/confessions",

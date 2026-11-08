@@ -393,8 +393,9 @@ async def save_attendance(
     Saves authentic attendance intercepted directly from CUE portal into PostgreSQL.
     """
     token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
+    reg_no = student.reg_number if student else None
     if effective_user_id and body.subjects:
-        await db.save_cached_attendance(effective_user_id, body.model_dump_json())
+        await db.save_cached_attendance(effective_user_id, body.model_dump_json(), reg_no)
     return {"success": True, "saved_subjects": len(body.subjects)}
 
 
@@ -407,24 +408,28 @@ async def get_attendance(
     Fetches student attendance. First checks PostgreSQL cache of real student records.
     """
     token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
+    reg_no = student.reg_number if student else None
 
     # 1. Check if we already have real attendance cached in DB
-    if effective_user_id:
-        cached_json = await db.get_cached_attendance(effective_user_id)
+    if effective_user_id or reg_no:
+        cached_json = await db.get_cached_attendance(effective_user_id or "", reg_no)
         if cached_json:
             import json
             try:
                 cached_dict = json.loads(cached_json)
                 if cached_dict.get("subjects"):
+                    if student:
+                        cached_dict["student"] = student.model_dump()
                     return AttendanceResponse(**cached_dict)
             except Exception:
                 pass
 
     # 2. Try live portal fetch
     res = await portal.fetch_student_attendance(token, student)
-    if effective_user_id and res.subjects:
+    if (effective_user_id or reg_no) and res.subjects:
         try:
-            await db.save_cached_attendance(effective_user_id, res.model_dump_json())
+            target_id = effective_user_id or f"student_{reg_no}"
+            await db.save_cached_attendance(target_id, res.model_dump_json(), reg_no)
         except Exception:
             pass
 
@@ -444,6 +449,23 @@ async def get_marks(
     return await portal.fetch_student_marks(token, student)
 
 
+@app.post("/hostel-attendance/save", tags=["Portal"])
+async def save_hostel_attendance(
+    body: HostelBiometricInfo,
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+):
+    """
+    Saves verified hostel biometric logs into PostgreSQL cache.
+    """
+    token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
+    reg_no = student.reg_number if student else None
+    if (effective_user_id or reg_no) and body.is_hostelite:
+        target_id = effective_user_id or f"student_{reg_no}"
+        await db.save_cached_hostel(target_id, body.model_dump_json(), reg_no)
+    return {"success": True}
+
+
 @app.get("/hostel-attendance", response_model=HostelBiometricInfo, tags=["Portal"])
 async def get_hostel_attendance(
     authorization: Optional[str] = Header(None),
@@ -453,8 +475,28 @@ async def get_hostel_attendance(
     Fetches hostel biometric attendance ONLY for students residing in university hostels.
     For day scholars, returns is_hostelite=False so nothing is displayed.
     """
-    token, _, _ = await resolve_student_and_token(authorization, x_user_id)
-    return await portal.fetch_hostel_attendance(token)
+    token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
+    reg_no = student.reg_number if student else None
+
+    # Check cache first
+    if effective_user_id or reg_no:
+        cached_json = await db.get_cached_hostel(effective_user_id or "", reg_no)
+        if cached_json:
+            import json
+            try:
+                cached_dict = json.loads(cached_json)
+                return HostelBiometricInfo(**cached_dict)
+            except Exception:
+                pass
+
+    res = await portal.fetch_hostel_attendance(token)
+    if (effective_user_id or reg_no) and res.is_hostelite:
+        try:
+            target_id = effective_user_id or f"student_{reg_no}"
+            await db.save_cached_hostel(target_id, res.model_dump_json(), reg_no)
+        except Exception:
+            pass
+    return res
 
 
 @app.post("/auth/logout", tags=["Authentication"])

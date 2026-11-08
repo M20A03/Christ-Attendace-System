@@ -316,6 +316,18 @@ export async function startNativePortalLogin(): Promise<{ success: boolean; erro
                 punches: Array.isArray(first.punches) ? first.punches : []
               };
               localStorage.setItem('cu_cached_hostel', JSON.stringify(hostelInfo));
+              try {
+                const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-5f08.up.railway.app';
+                fetch(`${apiBase}/hostel-attendance/save`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-Id': userId,
+                  },
+                  body: JSON.stringify(hostelInfo),
+                }).catch(() => {});
+              } catch {}
             }
           }
         }

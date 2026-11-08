@@ -143,7 +143,7 @@ export default function HostelPage() {
                 Hostel Biometric Portal
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                Real-time gate turnstile sync, curfew timer, and biometric entry audit
+                Real-time gate turnstile sync and biometric entry logs
               </p>
             </div>
 
@@ -207,11 +207,11 @@ export default function HostelPage() {
                 </div>
               </div>
 
-              {/* Quick Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              {/* Quick Biometric Details */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                    Biometric ID
+                    Biometric Sensor ID
                   </span>
                   <span className="text-sm font-black text-slate-900 dark:text-slate-100 mt-1 block font-mono">
                     {activeData?.biometric_id || "BIO-VALID"}
@@ -221,50 +221,23 @@ export default function HostelPage() {
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                    Gate Curfew
+                    Room Allotment
                   </span>
-                  <span className="text-sm font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono">
-                    09:30 PM
+                  <span className="text-sm font-black text-slate-900 dark:text-slate-100 mt-1 block font-mono">
+                    {activeData?.room_no || "Registered Room"}
                   </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Night Gate Closure</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Campus Residence</span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 col-span-2 sm:col-span-1">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                    Morning Gate Open
+                    Last Punch
                   </span>
                   <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-1 block font-mono">
-                    06:00 AM
+                    {activeData?.last_punch || "Turnstile Logged"}
                   </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Regular Entry/Exit</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Sensor Verification</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Curfew Protocol Card */}
-            <div className="bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase tracking-wider">
-                    Hostel Biometric Protocol
-                  </h3>
-                </div>
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Hostel Rules • Christ University
-                </span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700/60 space-y-2">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                    Biometric Check-in Policy:
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Hostel residents punch their biometric sensor at the campus turnstile before <strong>09:30 PM</strong> daily. Day scholars are fully exempt from hostel punch requirements.
-                </p>
               </div>
             </div>
 
@@ -350,20 +323,6 @@ export default function HostelPage() {
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
                 The Hostel Biometric Portal is active only for students residing in campus halls of residence (such as St. Kuriakose Elias Hall, Jonas Hall, or Devadan Hall). Our university records confirm that Register Number{" "}
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{student?.reg_number || "Student"}</span> is currently registered as a Day Scholar.
-              </p>
-            </div>
-
-            {/* Explanatory guidelines */}
-            <div className="max-w-md mx-auto p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-left text-xs text-slate-600 dark:text-slate-300 space-y-2">
-              <p className="font-bold text-slate-800 dark:text-slate-200">What this means for you:</p>
-              <p className="leading-relaxed">
-                • <strong>No Turnstile Punches Required:</strong> Day scholars are exempt from hostel biometric turnstile punch audits and 09:30 PM curfews.
-              </p>
-              <p className="leading-relaxed">
-                • <strong>Academic Attendance Unaffected:</strong> Your regular classroom and lab attendance continues to sync in real time on the <strong>Attendance</strong> tab.
-              </p>
-              <p className="leading-relaxed">
-                • <strong>Recently Shifted to Hostel?</strong> If you have recently moved into a campus hall, submit your room allotment slip to the Hostel Office for biometric sensor activation.
               </p>
             </div>
 

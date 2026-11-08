@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { loginWithCredentials } from "@/lib/api";
+import { loginWithCredentials, loginWithEsproToken } from "@/lib/api";
 import { hasActiveSession, initiateKeycloakLogin } from "@/lib/auth";
 import {
   ShieldCheck,
@@ -16,10 +16,14 @@ import {
   FileSpreadsheet,
   Award,
   Download,
+  Smartphone,
+  Apple,
+  KeyRound,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { isAppInstalled } from "@/lib/platform";
+import { EsproTokenModal } from "@/components/EsproTokenModal";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -29,6 +33,7 @@ export default function LandingPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isNative, setIsNative] = useState(false);
   const [isInstalled, setIsInstalled] = useState(true);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   // Form fields for web fallback
   const [username, setUsername] = useState("");
@@ -61,10 +66,21 @@ export default function LandingPage() {
     }
   };
 
-  // Auto-redirect if already signed in
+  // Auto-redirect if already signed in, or handle direct token query
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const tokenParam = params.get("token");
+      if (tokenParam) {
+        setLoading(true);
+        loginWithEsproToken(tokenParam)
+          .then(() => router.replace("/dashboard"))
+          .catch((err) => {
+            setError(err?.message || "Failed to log in with session token.");
+            setLoading(false);
+          });
+        return;
+      }
       if (params.get("expired")) {
         setSessionExpired(true);
       } else if (hasActiveSession()) {
@@ -174,32 +190,56 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Dedicated Android APK & iOS Install Banner (Only shown on mobile/desktop web browsers) */}
+        {/* Dedicated Two Fixed Download Buttons for Android & iOS */}
         {!isInstalled && (
-          <Link
-            href="/download"
-            className="w-full mb-6 p-4 rounded-3xl bg-slate-900 dark:bg-slate-850 text-white flex items-center justify-between border border-slate-800 shadow-md hover:border-slate-700 transition-all group select-none"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
-                <Download className="w-5 h-5" />
+          <div className="w-full mb-6 grid grid-cols-2 gap-3 select-none">
+            {/* Android Direct APK Button */}
+            <a
+              href="/ChristAttendance.apk"
+              download="ChristAttendance.apk"
+              className="relative p-3.5 sm:p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md hover:shadow-lg transition-all flex flex-col items-start justify-between border border-emerald-500 group overflow-hidden active:scale-[0.98]"
+            >
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-white text-emerald-900 uppercase tracking-wider">
+                  Direct APK
+                </span>
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold tracking-tight">
-                    Download / Install App
-                  </span>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-slate-950">
-                    Android & iOS
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Download APK for Android • 3-step setup for iPhone
-                </p>
+                <span className="text-xs sm:text-sm font-extrabold block tracking-tight leading-tight">
+                  Download for Android
+                </span>
+                <span className="text-[10px] text-emerald-100 font-medium block mt-0.5">
+                  1-Tap Direct Install (.apk)
+                </span>
               </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-          </Link>
+            </a>
+
+            {/* iPhone / iOS Button */}
+            <Link
+              href="/download"
+              className="relative p-3.5 sm:p-4 rounded-2xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white shadow-md hover:shadow-lg transition-all flex flex-col items-start justify-between border border-slate-700/80 group overflow-hidden active:scale-[0.98]"
+            >
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white">
+                  <Apple className="w-4 h-4" />
+                </div>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-500 text-white uppercase tracking-wider">
+                  iPhone / iOS
+                </span>
+              </div>
+              <div>
+                <span className="text-xs sm:text-sm font-extrabold block tracking-tight leading-tight">
+                  Install for iPhone
+                </span>
+                <span className="text-[10px] text-slate-300 font-medium block mt-0.5">
+                  Safari Setup (3 Steps)
+                </span>
+              </div>
+            </Link>
+          </div>
         )}
 
         {/* Login Card */}
@@ -319,6 +359,17 @@ export default function LandingPage() {
                     </>
                   )}
                 </motion.button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowTokenModal(true)}
+                    className="text-[11px] text-[#0f2b5c] dark:text-blue-400 hover:underline font-semibold inline-flex items-center gap-1"
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    <span>Connect directly with CUE / ESPRO Session Token</span>
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -370,11 +421,40 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Fixed Sticky Two-Button Bar for Mobile Web Users */}
+      {!isInstalled && (
+        <aside aria-label="Quick App Install" className="fixed bottom-3 left-3 right-3 sm:hidden z-40">
+          <div className="bg-slate-950/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-800 p-2 rounded-2xl shadow-2xl grid grid-cols-2 gap-2">
+            <a
+              href="/ChristAttendance.apk"
+              download="ChristAttendance.apk"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs active:scale-95 transition-transform"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Android APK</span>
+            </a>
+            <Link
+              href="/download"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-transform"
+            >
+              <Apple className="w-3.5 h-3.5" />
+              <span>iPhone (iOS)</span>
+            </Link>
+          </div>
+        </aside>
+      )}
+
       {/* Clean University Footer */}
       <footer className="max-w-4xl mx-auto w-full px-5 py-4 border-t border-slate-200/90 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2 font-medium">
         <p>Christ Attendance • Built for Christ University Students</p>
         <p className="font-mono text-[11px]">Official CUE Academic Portal Sync</p>
       </footer>
+
+      {/* CUE Token Modal */}
+      <EsproTokenModal
+        isOpen={showTokenModal}
+        onClose={() => setShowTokenModal(false)}
+      />
     </main>
   );
 }

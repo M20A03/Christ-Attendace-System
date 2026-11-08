@@ -39,7 +39,15 @@ class Session(Base):
 class AttendanceCache(Base):
     __tablename__ = "attendance_cache"
 
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String(64), primary_key=True)
+    data_json = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class HostelCache(Base):
+    __tablename__ = "hostel_cache"
+
+    user_id = Column(String(64), primary_key=True)
     data_json = Column(String, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -219,28 +227,104 @@ async def delete_user_session(user_id: str):
             await session.execute(stmt)
 
 
-async def save_cached_attendance(user_id: str, data_json: str):
+async def save_cached_attendance(user_id: str, data_json: str, reg_number: Optional[str] = None):
     """Save real attendance records in database for 30+ days persistence."""
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            stmt = select(AttendanceCache).where(AttendanceCache.user_id == user_id)
-            result = await session.execute(stmt)
-            cache = result.scalar_one_or_none()
             now = datetime.now(timezone.utc)
-            if cache:
-                cache.data_json = data_json
-                cache.updated_at = now
+            keys_to_save = [user_id]
+            if reg_number:
+                keys_to_save.extend([f"student_{reg_number}", reg_number])
+            elif user_id.startswith("student_"):
+                keys_to_save.append(user_id.replace("student_", ""))
             else:
-                cache = AttendanceCache(user_id=user_id, data_json=data_json, updated_at=now)
-                session.add(cache)
+                try:
+                    user_stmt = select(User.reg_number).where(User.id == user_id)
+                    user_res = await session.execute(user_stmt)
+                    reg = user_res.scalar_one_or_none()
+                    if reg:
+                        keys_to_save.extend([f"student_{reg}", reg])
+                except Exception:
+                    pass
+
+            for key in list(dict.fromkeys(keys_to_save)):
+                stmt = select(AttendanceCache).where(AttendanceCache.user_id == key)
+                result = await session.execute(stmt)
+                cache = result.scalar_one_or_none()
+                if cache:
+                    cache.data_json = data_json
+                    cache.updated_at = now
+                else:
+                    cache = AttendanceCache(user_id=key, data_json=data_json, updated_at=now)
+                    session.add(cache)
 
 
-async def get_cached_attendance(user_id: str) -> Optional[str]:
-    """Retrieve persistent real attendance records for user."""
+async def get_cached_attendance(user_id: str, reg_number: Optional[str] = None) -> Optional[str]:
+    """Retrieve persistent real attendance records for user across UUID, student_reg and reg_number keys."""
     async with AsyncSessionLocal() as session:
-        stmt = select(AttendanceCache.data_json).where(AttendanceCache.user_id == user_id)
+        keys = [user_id]
+        if reg_number:
+            keys.extend([f"student_{reg_number}", reg_number])
+        if user_id.startswith("student_"):
+            clean_reg = user_id.replace("student_", "")
+            keys.append(clean_reg)
+        else:
+            try:
+                user_stmt = select(User.reg_number).where(User.id == user_id)
+                user_res = await session.execute(user_stmt)
+                reg = user_res.scalar_one_or_none()
+                if reg:
+                    keys.extend([f"student_{reg}", reg])
+            except Exception:
+                pass
+
+        dedup_keys = list(dict.fromkeys(keys))
+        stmt = (
+            select(AttendanceCache.data_json)
+            .where(AttendanceCache.user_id.in_(dedup_keys))
+            .order_by(AttendanceCache.updated_at.desc())
+        )
         result = await session.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
+
+
+async def save_cached_hostel(user_id: str, data_json: str, reg_number: Optional[str] = None):
+    """Save verified hostel biometric records for 30+ days."""
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            now = datetime.now(timezone.utc)
+            keys = [user_id]
+            if reg_number:
+                keys.extend([f"student_{reg_number}", reg_number])
+            elif user_id.startswith("student_"):
+                keys.append(user_id.replace("student_", ""))
+            for key in list(dict.fromkeys(keys)):
+                stmt = select(HostelCache).where(HostelCache.user_id == key)
+                result = await session.execute(stmt)
+                cache = result.scalar_one_or_none()
+                if cache:
+                    cache.data_json = data_json
+                    cache.updated_at = now
+                else:
+                    cache = HostelCache(user_id=key, data_json=data_json, updated_at=now)
+                    session.add(cache)
+
+
+async def get_cached_hostel(user_id: str, reg_number: Optional[str] = None) -> Optional[str]:
+    """Retrieve verified hostel biometric records across user identifiers."""
+    async with AsyncSessionLocal() as session:
+        keys = [user_id]
+        if reg_number:
+            keys.extend([f"student_{reg_number}", reg_number])
+        if user_id.startswith("student_"):
+            keys.append(user_id.replace("student_", ""))
+        stmt = (
+            select(HostelCache.data_json)
+            .where(HostelCache.user_id.in_(list(dict.fromkeys(keys))))
+            .order_by(HostelCache.updated_at.desc())
+        )
+        result = await session.execute(stmt)
+        return result.scalars().first()
 
 
 async def create_confession(
