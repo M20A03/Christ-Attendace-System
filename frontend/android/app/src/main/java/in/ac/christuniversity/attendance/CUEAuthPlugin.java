@@ -127,6 +127,7 @@ public class CUEAuthPlugin extends Plugin {
         "  }" +
         "" +
         "  var lastCountData = null;" +
+        "  var lastHostelData = null;" +
         "  function checkAndNotify(url, bodyText) {" +
         "    if (!bodyText || bodyText.length < 10) return;" +
         "    var u = (url || '').toLowerCase();" +
@@ -135,14 +136,20 @@ public class CUEAuthPlugin extends Plugin {
         "        lastCountData = JSON.parse(bodyText);" +
         "      } catch(e) {}" +
         "    }" +
+        "    if (u.indexOf('gethostelbiometric') !== -1) {" +
+        "      try {" +
+        "        lastHostelData = JSON.parse(bodyText);" +
+        "      } catch(e) {}" +
+        "    }" +
         "    if (u.indexOf('coursewiseattendance') !== -1 || u.indexOf('attendancecbcs') !== -1 || u.indexOf('getattendancedetailsbysemester') !== -1) {" +
         "      console.log('[CUE Hook] Intercepted course attendance response!');" +
         "      try {" +
         "        var payload = bodyText;" +
-        "        if (lastCountData) {" +
+        "        if (lastCountData || lastHostelData) {" +
         "          try {" +
         "            payload = JSON.stringify({" +
         "              countInfo: lastCountData," +
+        "              hostelData: lastHostelData," +
         "              courseData: JSON.parse(bodyText)" +
         "            });" +
         "          } catch(e) {}" +

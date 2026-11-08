@@ -240,10 +240,29 @@ export async function fetchMarks(): Promise<MarksData> {
 
 /**
  * Fetch hostel biometric attendance (only for hostel students)
+ * Checks local cache first, then queries backend.
  */
 export async function fetchHostelAttendance(): Promise<HostelBiometricInfo> {
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("cu_cached_hostel");
+      if (cached) {
+        const parsed: HostelBiometricInfo = JSON.parse(cached);
+        if (parsed && typeof parsed.is_hostelite === "boolean") {
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+
   try {
-    return await request<HostelBiometricInfo>("/hostel-attendance", { method: "GET" });
+    const res = await request<HostelBiometricInfo>("/hostel-attendance", { method: "GET" });
+    if (res && typeof window !== "undefined") {
+      try {
+        localStorage.setItem("cu_cached_hostel", JSON.stringify(res));
+      } catch {}
+    }
+    return res;
   } catch {
     return { is_hostelite: false };
   }

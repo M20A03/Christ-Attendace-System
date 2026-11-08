@@ -4,17 +4,16 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginWithCredentials } from "@/lib/api";
 import { hasActiveSession, initiateKeycloakLogin } from "@/lib/auth";
-import { EsproTokenModal } from "@/components/EsproTokenModal";
 import {
   ShieldCheck,
-  Lock,
   ArrowRight,
   AlertCircle,
   Eye,
   EyeOff,
   Loader2,
-  KeyRound,
-  Sparkles,
+  CalendarCheck,
+  FileSpreadsheet,
+  Award,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -22,11 +21,10 @@ export default function LandingPage() {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isNative, setIsNative] = useState(false);
 
-  // Form fields
+  // Form fields for web fallback
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -50,34 +48,16 @@ export default function LandingPage() {
         setError(res.error);
       }
     } catch (err: any) {
-      setError(err?.message || "Failed to launch native login");
+      setError(err?.message || "Failed to launch portal login");
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-redirect if already signed in, or handle ?token= param from Bookmarklet/URL
+  // Auto-redirect if already signed in
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const incomingToken = params.get("token");
-
-      if (incomingToken) {
-        setLoading(true);
-        import("@/lib/api").then(({ loginWithEsproToken }) => {
-          loginWithEsproToken(incomingToken.trim())
-            .then(() => {
-              window.history.replaceState({}, document.title, window.location.pathname);
-              router.replace("/dashboard");
-            })
-            .catch((err) => {
-              setError("ESPRO session token invalid or expired. Please sync again from CUE.");
-              setLoading(false);
-            });
-        });
-        return;
-      }
-
       if (params.get("expired") === "true") {
         setSessionExpired(true);
       } else if (hasActiveSession()) {
@@ -109,7 +89,7 @@ export default function LandingPage() {
       );
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Unable to sign in. Please check your credentials.");
+      setError(err.message || "Unable to sign in. Please verify your credentials.");
     } finally {
       setLoading(false);
     }
@@ -120,7 +100,7 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300">
+    <main className="min-h-screen bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-emerald-500/20">
       {/* Top University Brand Bar */}
       <header className="max-w-4xl mx-auto w-full px-5 py-4 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="flex items-center gap-3">
@@ -132,7 +112,7 @@ export default function LandingPage() {
               Christ University
             </span>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono block">
-              Student Attendance & Academic Portal
+              Student Attendance & Academic Suite
             </span>
           </div>
         </div>
@@ -140,107 +120,71 @@ export default function LandingPage() {
         <button
           onClick={handleDemoLogin}
           type="button"
-          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+          className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
         >
           Sample Preview
         </button>
       </header>
 
-      {/* Main Login Area */}
+      {/* Main Container */}
       <div className="max-w-md mx-auto w-full px-5 py-8 flex flex-col items-center">
         {sessionExpired && (
-          <div className="w-full mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 flex items-center gap-2.5 text-xs">
+          <div className="w-full mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 flex items-center gap-2.5 text-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Your session ended. Please sign in again to view your updated attendance.</span>
+            <span>Session expired. Please sign in again to refresh your attendance.</span>
           </div>
         )}
 
-        {/* Academic Shield Badge */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium mb-4">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Christ Student Attendance & Safe Skips</span>
+        <div className="text-center space-y-2 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white leading-tight">
+            Know your attendance before walking into class.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+            Live subject tracking, safe-skip predictions, and CIA marks synced directly from the official Christ University portal.
+          </p>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white text-center leading-tight">
-          Sign In to Your Account
-        </h1>
-
-        <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400 text-center max-w-sm">
-          Enter your credentials once. Your phone stays securely logged in so you never have to sign in again.
-        </p>
-
-        {/* Mode Selector */}
-        <div className="w-full mt-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        {/* Login Card */}
+        <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-5">
           {isNative ? (
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#0b1d3a] to-[#1e3a8a] text-white shadow-md space-y-4 border border-blue-900">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold tracking-tight text-white">
-                    Official Christ University Login
-                  </h3>
-                  <p className="text-[11px] text-blue-200">
-                    Live Portal Sync & 30-Day Auto Login
-                  </p>
-                </div>
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-left space-y-1">
+                <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                  1-Tap Official Sign In
+                </span>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Sign in through the official Christ University portal. Your live courses, safe skips, and attendance sync automatically to this device for 30 days.
+                </p>
               </div>
-              <p className="text-xs text-blue-100 leading-relaxed">
-                Tap below to open the official Christ portal. Sign in once with your student ID & password—the app automatically captures your session, closes the portal, and loads your authentic attendance & safe skips!
-              </p>
+
+              {error && (
+                <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleNativeLogin}
                 disabled={loading}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-75"
+                className="w-full py-3.5 px-4 rounded-2xl bg-[#0f2b5c] hover:bg-[#163b7d] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-75"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                    <span>Syncing Real Attendance...</span>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Syncing Live Attendance...</span>
                   </>
                 ) : (
                   <>
                     <span>Sign In via Official CUE Portal</span>
-                    <ArrowRight className="w-4 h-4 text-slate-950" />
+                    <ArrowRight className="w-4 h-4 text-white" />
                   </>
                 )}
               </button>
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
-              <KeyRound className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Want 100% Real University Data?
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  Christ University protects logins with Cloudflare Turnstile bot verification. Connect your live CUE session token once to pull your authentic courses and attendance directly from ESPro port 84.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsTokenModalOpen(true)}
-                  className="mt-2.5 px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                >
-                  <span>Connect Live ESPRO Session (Real Data)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!isNative && (
-            <>
-              <div className="relative flex items-center justify-center my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200 dark:border-slate-800" />
-                </div>
-                <div className="relative px-3 bg-white dark:bg-slate-900 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Or Sign In with Student ID
-                </div>
-              </div>
-
+            <div className="space-y-4">
               {error && (
                 <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -260,7 +204,7 @@ export default function LandingPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. 2347101 or name@science.christuniversity.in"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400 transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] transition-all"
                   />
                 </div>
 
@@ -276,7 +220,7 @@ export default function LandingPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400 transition-all pr-10"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] transition-all pr-10"
                     />
                     <button
                       type="button"
@@ -294,7 +238,7 @@ export default function LandingPage() {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 dark:bg-slate-800"
+                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-[#0f2b5c] focus:ring-[#0f2b5c] dark:bg-slate-800"
                     />
                     <span>Remember on this device (30 days)</span>
                   </label>
@@ -303,58 +247,70 @@ export default function LandingPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-semibold text-xs hover:bg-slate-800 dark:hover:bg-slate-100 shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full mt-2 py-3 px-4 rounded-2xl bg-[#0f2b5c] hover:bg-[#163b7d] text-white font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span>Sign In & View Attendance</span>
+                    <span>Sign In to View Attendance</span>
                   )}
                 </button>
               </form>
-            </>
+            </div>
           )}
-
-          {/* Security Guarantee */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
-            <span className="flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-              AES-256-GCM Encrypted at rest
-            </span>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="text-slate-700 dark:text-slate-300 hover:underline font-medium"
-            >
-              Sample Preview →
-            </button>
-          </div>
         </div>
 
-        {/* Secondary Option: Token Modal */}
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => setIsTokenModalOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Developer / Live ESPRO Token Connect</span>
-          </button>
+        {/* 3 Real Feature Highlights (Non-Generic) */}
+        <div className="w-full mt-8 grid grid-cols-1 gap-3 text-left">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <CalendarCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                Safe-Skips Calculator
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Know the exact number of classes you can miss while staying safely above the mandatory 85% requirement.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <FileSpreadsheet className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                Blue & Yellow Form Claims
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Add your duty leave (fests & hackathons) and approved medical hours to project your true exam eligibility.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Award className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                CIA & End-Sem Marks Predictor
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Calculate scaled internal scores and see the exact question paper score needed to secure your target grade.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Clean University Footer */}
       <footer className="max-w-4xl mx-auto w-full px-5 py-4 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
-        <p>Christ Attendance Viewer • Built for Christ University Students</p>
-        <p className="font-mono text-[11px]">PWA Version 1.3 • Light Theme</p>
+        <p>Christ Attendance • Built for Christ University Students</p>
+        <p className="font-mono text-[11px]">Official CUE Academic Portal Sync</p>
       </footer>
-
-      {/* ESPRO Live Token Modal */}
-      <EsproTokenModal
-        isOpen={isTokenModalOpen}
-        onClose={() => setIsTokenModalOpen(false)}
-      />
     </main>
   );
 }

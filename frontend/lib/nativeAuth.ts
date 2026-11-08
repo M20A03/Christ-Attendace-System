@@ -299,6 +299,28 @@ export async function startNativePortalLogin(): Promise<{ success: boolean; erro
 
     // If raw attendance was intercepted, parse and cache it immediately
     if (res.raw_attendance) {
+      // Check for intercepted hostel biometric data
+      try {
+        const rawObj = JSON.parse(res.raw_attendance);
+        if (rawObj && rawObj.hostelData && typeof window !== 'undefined') {
+          const hd = rawObj.hostelData;
+          const items = Array.isArray(hd) ? hd : (hd.data || [hd]);
+          if (items.length > 0) {
+            const first = items[0];
+            if (first.is_valid === 1 || first.is_hostelite) {
+              const hostelInfo = {
+                is_hostelite: true,
+                biometric_id: String(first.biometric_id || first.biometricId || ''),
+                hostel_name: first.hostel_name || first.hostelName || 'Christ University Student Hostel',
+                last_punch: first.last_punch || undefined,
+                punches: Array.isArray(first.punches) ? first.punches : []
+              };
+              localStorage.setItem('cu_cached_hostel', JSON.stringify(hostelInfo));
+            }
+          }
+        }
+      } catch {}
+
       const attendanceData = parseRawPortalAttendance(res.raw_attendance, studentInfo);
       if (attendanceData && attendanceData.subjects.length > 0) {
         if (typeof window !== 'undefined') {

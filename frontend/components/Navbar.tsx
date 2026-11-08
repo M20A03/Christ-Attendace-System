@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { StudentInfo } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
-import { LogOut, RefreshCw, Moon, Sun, ShieldCheck, KeyRound } from "lucide-react";
+import { LogOut, RefreshCw, Moon, Sun, ShieldCheck } from "lucide-react";
 
 interface NavbarProps {
   student?: StudentInfo | null;
   lastUpdated?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
-  onOpenTokenModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,7 +17,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   lastUpdated,
   onRefresh,
   isRefreshing = false,
-  onOpenTokenModal,
 }) => {
   const [isDark, setIsDark] = useState<boolean>(false);
 
@@ -50,10 +48,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const handleLogout = async () => {
+    if (confirm("Are you sure you want to sign out?")) {
+      await logoutUser();
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
+    <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Left: Christ University branding & student info */}
+        {/* Left: Christ University crest badge & student info */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#0f2b5c] text-white flex items-center justify-center font-bold text-xs tracking-wider border border-[#1e3a8a] shadow-sm">
             CU
@@ -63,27 +67,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <h1 className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-tight">
                 {student?.name || "Christ Student"}
               </h1>
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             </div>
             <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-              Reg: {student?.reg_number || "2347101"}
+              Reg: {student?.reg_number || "Student"}
             </p>
           </div>
         </div>
 
-        {/* Right actions: Refresh, Token, Theme Toggle, Logout */}
+        {/* Right actions: Refresh, Theme Toggle, Logout */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {onOpenTokenModal && (
-            <button
-              onClick={onOpenTokenModal}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
-              title="Connect or update live ESPRO token"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden md:inline">ESPRO Token</span>
-            </button>
-          )}
-
           {onRefresh && (
             <button
               onClick={onRefresh}
@@ -102,13 +95,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="Toggle theme"
           >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
           <button
-            onClick={() => logoutUser()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors"
-            title="Sign out"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+            title="Sign out of device"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Logout</span>
@@ -118,4 +111,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
-
