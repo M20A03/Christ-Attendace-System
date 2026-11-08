@@ -50,8 +50,18 @@ public class CUEAuthPlugin extends Plugin {
         @JavascriptInterface
         public void onToken(String token) {
             Log.d(TAG, "Bridge captured token fallback");
-            if (!dataIntercepted) {
-                // Keep token ready in case direct attendance payload takes a second
+            if (token != null && token.length() > 50 && !dataIntercepted) {
+                // If direct attendance interception doesn't trigger within 4 seconds, complete with token
+                if (autoCloseHandler == null) {
+                    autoCloseHandler = new Handler(Looper.getMainLooper());
+                    autoCloseRunnable = () -> {
+                        if (!dataIntercepted) {
+                            Log.i(TAG, "Proceeding with captured authentic portal token fallback");
+                            handleInterceptedData(null, null, token);
+                        }
+                    };
+                    autoCloseHandler.postDelayed(autoCloseRunnable, 4000);
+                }
             }
         }
     }
@@ -191,13 +201,72 @@ public class CUEAuthPlugin extends Plugin {
         "    return origSend.apply(this, arguments);" +
         "  };" +
         "" +
-        "  /* Periodic scanner fallback in case React rendered without fetch triggers */" +
+        "  /* Active portal attendance fetcher as soon as Keycloak token is found */" +
+        "  var activeTriggered = false;" +
+        "  function triggerActiveAttendancePull(tok) {" +
+        "    if (activeTriggered) return;" +
+        "    activeTriggered = true;" +
+        "    var h = {" +
+        "      'Authorization': 'Bearer ' + tok," +
+        "      'Content-Type': 'application/json'," +
+        "      'Accept': 'application/json, text/plain, */*'" +
+        "    };" +
+        "    var base = 'https://espro.christuniversity.in:84';" +
+        "    fetch(base + '/ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters', {" +
+        "      method: 'POST'," +
+        "      headers: h," +
+        "      body: '{}'" +
+        "    })" +
+        "    .then(function(r) { return r.json(); })" +
+        "    .then(function(semData) {" +
+        "      var sessList = Array.isArray(semData) ? semData : (semData.data || []);" +
+        "      var curSess = sessList.find(function(s) { return s && s.isCurrent; }) || sessList[0];" +
+        "      var sessId = curSess ? curSess.sessionId : null;" +
+        "      var termNo = curSess ? (curSess.termNumber || curSess.semester) : null;" +
+        "      var callKp = curSess ? curSess.callKpServiceNew : false;" +
+        "      if (callKp && termNo) {" +
+        "        return fetch(base + '/KPServiceNew/rest/getAttendanceDetailsBySemester?termNo=' + termNo, { method: 'POST', headers: h, body: '{}' })" +
+        "          .then(function(r) { return r.text(); })" +
+        "          .then(function(txt) { checkAndNotify('attendancecbcs', txt); });" +
+        "      }" +
+        "      if (sessId) {" +
+        "        fetch(base + '/ClassRoomAttendanceServices/Student/StudentAttendance/getAttendanceCount?sessionId=' + sessId, { method: 'POST', headers: h, body: '{}' })" +
+        "          .then(function(r) { return r.text(); })" +
+        "          .then(function(cTxt) {" +
+        "            try { lastCountData = JSON.parse(cTxt); } catch(e) {}" +
+        "            return fetch(base + '/ClassRoomAttendanceServices/Student/StudentAttendance/getCourseWiseAttendance?sessionId=' + sessId, { method: 'POST', headers: h, body: '{}' })" +
+        "              .then(function(r) { return r.text(); })" +
+        "              .then(function(courseTxt) {" +
+        "                checkAndNotify('coursewiseattendance', courseTxt);" +
+        "              });" +
+        "          })" +
+        "          .catch(function() {" +
+        "            fetch(base + '/KPServiceNew/rest/getAttendanceCBCS', { method: 'POST', headers: h, body: '{}' })" +
+        "              .then(function(r) { return r.text(); })" +
+        "              .then(function(txt) { checkAndNotify('attendancecbcs', txt); });" +
+        "          });" +
+        "      } else {" +
+        "        fetch(base + '/KPServiceNew/rest/getAttendanceCBCS', { method: 'POST', headers: h, body: '{}' })" +
+        "          .then(function(r) { return r.text(); })" +
+        "          .then(function(txt) { checkAndNotify('attendancecbcs', txt); });" +
+        "      }" +
+        "    })" +
+        "    .catch(function() {" +
+        "      fetch(base + '/KPServiceNew/rest/getAttendanceCBCS', { method: 'POST', headers: h, body: '{}' })" +
+        "        .then(function(r) { return r.text(); })" +
+        "        .then(function(txt) { checkAndNotify('attendancecbcs', txt); })" +
+        "        .catch(function() {});" +
+        "    });" +
+        "  }" +
+        "" +
+        "  /* Periodic scanner fallback */" +
         "  setInterval(function() {" +
         "    var tok = getToken();" +
         "    if (tok && tok.length > 50) {" +
+        "      triggerActiveAttendancePull(tok);" +
         "      try { window.CUEBridge.onToken(tok); } catch(e) {}" +
         "    }" +
-        "  }, 500);" +
+        "  }, 600);" +
         "})();";
 
     @PluginMethod

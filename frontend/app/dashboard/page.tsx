@@ -36,7 +36,11 @@ export default function DashboardPage() {
         fetchAttendance(),
         fetchHostelAttendance().catch(() => ({ is_hostelite: false })),
       ]);
-      setData(attResult);
+      if (attResult.subjects && attResult.subjects.length > 0) {
+        setData(attResult);
+      } else {
+        setData((prev) => (prev && prev.subjects && prev.subjects.length > 0 ? prev : attResult));
+      }
       setHostelData(bioResult);
       setSecondsAgo(0);
     } catch (err: any) {

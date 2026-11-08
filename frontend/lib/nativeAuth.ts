@@ -345,6 +345,28 @@ export async function startNativePortalLogin(): Promise<{ success: boolean; erro
       }
     }
 
+    // If direct payload was missing or empty, pull immediately using the token
+    if (typeof window !== 'undefined' && !localStorage.getItem('cu_cached_attendance') && token && token.length > 50) {
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-5f08.up.railway.app';
+        const resp = await fetch(`${apiBase}/attendance`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-User-Id': userId,
+          },
+        });
+        if (resp.ok) {
+          const fetched = await resp.json();
+          if (fetched && fetched.subjects && fetched.subjects.length > 0) {
+            localStorage.setItem('cu_cached_attendance', JSON.stringify(fetched));
+          }
+        }
+      } catch (e) {
+        console.warn('Initial attendance pull on login fallback:', e);
+      }
+    }
+
     return { success: true };
   } catch (err: any) {
     if (typeof err === 'string' && err.includes('cancelled')) {

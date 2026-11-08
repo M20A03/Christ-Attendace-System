@@ -46,8 +46,6 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.includes("/auth/") ||
     url.pathname.includes("/attendance") ||
-    url.pathname.includes("/marks") ||
-    url.pathname.includes("/hostel") ||
     url.pathname.includes("/confessions") ||
     url.pathname.startsWith("/api/")
   ) {

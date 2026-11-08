@@ -170,7 +170,7 @@ export default function LandingPage() {
             Know your attendance before walking into class.
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed font-medium">
-            Live subject tracking, safe-skip predictions, and CIA marks synced directly from the official Christ University portal.
+            Live subject tracking, safe-skip predictions, and campus confessions synced directly from the official Christ University portal.
           </p>
         </div>
 
@@ -355,15 +355,15 @@ export default function LandingPage() {
           </div>
 
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800/80 shadow-[0_2px_12px_rgba(15,43,92,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] flex items-start gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5 border border-amber-100 dark:border-amber-800/50">
-              <Award className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 flex items-center justify-center flex-shrink-0 mt-0.5 border border-purple-100 dark:border-purple-800/50">
+              <CalendarCheck className="w-4 h-4" />
             </div>
             <div>
               <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                CIA & End-Sem Marks Predictor
+                Anonymous Campus Confessions
               </span>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed font-medium">
-                Calculate scaled internal scores and see the exact question paper score needed to secure your target grade on Christ 4.0 scale.
+                Share authentic campus thoughts and experiences. Every confession automatically disappears in 24 hours.
               </p>
             </div>
           </div>

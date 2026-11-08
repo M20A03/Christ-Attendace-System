@@ -38,3 +38,4 @@ export function isAppInstalled(): boolean {
 
   return false;
 }
+
