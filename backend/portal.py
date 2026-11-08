@@ -44,69 +44,194 @@ def get_empty_marks(student: StudentInfo) -> MarksResponse:
     )
 
 
+def _parse_num(val: Any) -> Optional[float]:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        clean = val.replace("%", "").strip()
+        if not clean:
+            return None
+        try:
+            return float(clean)
+        except ValueError:
+            return None
+    return None
+
+
 def parse_portal_attendance_data(raw_data: Any, student: StudentInfo, overall_pct: Optional[float] = None) -> AttendanceResponse:
     """
     Parses dynamic portal response structures into standard AttendanceResponse.
-    Handles different schemas that Christ University CUE portal emits.
+    Supports all Christ University ESPro endpoints:
+    - totalHoursAttended / totalHoursScheduled / totalPercentage (getCourseWiseAttendance)
+    - courseTypeDetails breakdown (Theory / Practical)
+    - withMedical / hoursHeld (KPServiceNew / getAttendanceCBCS)
+    - overallPercentage / presentCount (getAttendanceCount)
     """
     import datetime
 
     # If raw_data is a dictionary wrapping subjects or data
     if isinstance(raw_data, dict):
-        if "data" in raw_data and isinstance(raw_data["data"], (list, dict)):
+        if "courseData" in raw_data:
+            if not overall_pct and "countInfo" in raw_data:
+                ci = raw_data["countInfo"]
+                overall_pct = _parse_num(ci.get("overallPercentage") or ci.get("overall"))
+            raw_data = raw_data["courseData"]
+        elif "data" in raw_data and isinstance(raw_data["data"], (list, dict)):
             raw_data = raw_data["data"]
 
-    if isinstance(raw_data, dict) and "subjects" in raw_data:
-        subjects_list = [
-            SubjectAttendance(
-                name=s.get("name") or s.get("subject_name") or s.get("courseName", "Unknown"),
-                attended=int(s.get("attended") or s.get("classesAttended") or s.get("presentCount", 0)),
-                total=int(s.get("total") or s.get("totalClasses") or s.get("totalCount", 0)),
-                percentage=float(s.get("percentage") or s.get("overallPercentage") or (round(int(s.get("attended", 0)) / max(int(s.get("total", 1)), 1) * 100, 1))),
-                subject_code=s.get("subject_code") or s.get("courseCode"),
-                faculty=s.get("faculty") or s.get("staffName") or s.get("facultyName"),
-            )
-            for s in raw_data.get("subjects", [])
-        ]
-        computed_overall = overall_pct or float(raw_data.get("overall_attendance") or raw_data.get("overallPercentage", 0.0))
-        return AttendanceResponse(
-            student=student,
-            overall_attendance=computed_overall,
-            subjects=subjects_list,
-            today_classes=[],
-            last_updated=datetime.datetime.now().strftime("%I:%M %p"),
-        )
+    attended_keys = [
+        "totalHoursAttended",
+        "classesAttended",
+        "attendedClasses",
+        "attendedHours",
+        "attended",
+        "presentCount",
+        "present",
+        "totalPresent",
+        "withMedical",
+        "withoutMedical",
+        "subjectClassesAttended",
+        "classes_attended",
+        "hours_attended",
+    ]
 
-    # If raw_data is a list of course attendance records from getCourseWiseAttendance
-    if isinstance(raw_data, list):
+    scheduled_keys = [
+        "totalHoursScheduled",
+        "scheduledHours",
+        "totalScheduled",
+        "totalClasses",
+        "totalConducted",
+        "classesHeld",
+        "conducted",
+        "total",
+        "totalCount",
+        "hoursHeld",
+        "subjectClassesHeld",
+        "total_classes",
+        "hours_scheduled",
+    ]
+
+    percentage_keys = [
+        "totalPercentage",
+        "percentage",
+        "overallPercentage",
+        "subjectClassesAttendedPercentage",
+        "attendancePercentage",
+        "percentageWithoutLeave",
+        "percentageWithLeave",
+    ]
+
+    # Handle dictionary with subjects array
+    if isinstance(raw_data, dict) and "subjects" in raw_data:
+        raw_list = raw_data.get("subjects", [])
+    elif isinstance(raw_data, list):
+        # Check if list contains semester objects
+        if raw_data and isinstance(raw_data[0], dict) and "subjects" in raw_data[0]:
+            raw_list = raw_data[0].get("subjects", [])
+        else:
+            raw_list = raw_data
+    else:
+        raw_list = []
+
+    if raw_list:
         subjects_list = []
         tot_att = 0
         tot_classes = 0
-        for item in raw_data:
+        for item in raw_list:
             if not isinstance(item, dict):
                 continue
-            name = item.get("courseName") or item.get("subjectName") or item.get("subject") or item.get("name", "Course")
-            att = int(item.get("classesAttended") or item.get("attendedClasses") or item.get("attended") or item.get("presentCount") or item.get("present", 0))
-            tot = int(item.get("totalClasses") or item.get("totalConducted") or item.get("total") or item.get("totalCount", 0))
-            
-            raw_pct = item.get("percentage") or item.get("overallPercentage") or item.get("attendancePercentage")
-            pct = float(raw_pct) if raw_pct is not None else (round((att / tot * 100), 1) if tot > 0 else 0.0)
-            
-            tot_att += att
-            tot_classes += tot
+            name = (
+                item.get("courseName")
+                or item.get("subjectName")
+                or item.get("courseTitle")
+                or item.get("subject")
+                or item.get("course")
+                or item.get("name", "Course")
+            )
+
+            # 1. Attended
+            att = None
+            for k in attended_keys:
+                val = _parse_num(item.get(k))
+                if val is not None:
+                    att = int(val)
+                    break
+
+            # 2. Scheduled / Total
+            tot = None
+            for k in scheduled_keys:
+                val = _parse_num(item.get(k))
+                if val is not None:
+                    tot = int(val)
+                    break
+
+            # 3. Fallback: courseTypeDetails breakdown (Theory / Practical)
+            if (att is None or att == 0) and (tot is None or tot == 0):
+                details = item.get("courseTypeDetails")
+                if isinstance(details, list) and details:
+                    sum_att = 0
+                    sum_tot = 0
+                    found = False
+                    for d in details:
+                        if isinstance(d, dict):
+                            d_att = None
+                            d_tot = None
+                            for k in attended_keys:
+                                v = _parse_num(d.get(k))
+                                if v is not None:
+                                    d_att = int(v)
+                                    break
+                            for k in scheduled_keys:
+                                v = _parse_num(d.get(k))
+                                if v is not None:
+                                    d_tot = int(v)
+                                    break
+                            if d_att is not None or d_tot is not None:
+                                sum_att += (d_att or 0)
+                                sum_tot += (d_tot or 0)
+                                found = True
+                    if found:
+                        att = sum_att
+                        tot = sum_tot
+
+            # 4. Fallback: compound theory + practical
+            if (att is None or att == 0) and (tot is None or tot == 0):
+                if any(k in item for k in ("theoryAttended", "practicalAttended", "theoryConducted", "practicalConducted")):
+                    att = int((_parse_num(item.get("theoryAttended")) or 0) + (_parse_num(item.get("practicalAttended")) or 0))
+                    tot = int((_parse_num(item.get("theoryConducted")) or 0) + (_parse_num(item.get("practicalConducted")) or 0))
+
+            final_att = att if att is not None else 0
+            final_tot = tot if tot is not None else 0
+
+            # 5. Percentage
+            pct = None
+            for k in percentage_keys:
+                val = _parse_num(item.get(k))
+                if val is not None:
+                    pct = round(val, 1)
+                    break
+            if pct is None:
+                pct = round((final_att / final_tot * 100), 1) if final_tot > 0 else 0.0
+
+            tot_att += final_att
+            tot_classes += final_tot
             subjects_list.append(
                 SubjectAttendance(
                     name=name,
-                    attended=att,
-                    total=tot,
+                    attended=final_att,
+                    total=final_tot,
                     percentage=pct,
-                    subject_code=item.get("courseCode") or item.get("subjectCode"),
-                    faculty=item.get("staffName") or item.get("facultyName") or item.get("faculty"),
+                    subject_code=item.get("courseCode") or item.get("subjectCode") or item.get("code"),
+                    faculty=item.get("staffName") or item.get("facultyName") or item.get("teacherName") or item.get("faculty"),
                 )
             )
 
         if overall_pct is not None:
-            overall = float(overall_pct)
+            overall = round(float(overall_pct), 1)
+        elif isinstance(raw_data, dict) and (raw_data.get("overall_attendance") or raw_data.get("overallPercentage")):
+            overall = round(float(raw_data.get("overall_attendance") or raw_data.get("overallPercentage")), 1)
         else:
             overall = round((tot_att / tot_classes * 100), 1) if tot_classes > 0 else 0.0
 

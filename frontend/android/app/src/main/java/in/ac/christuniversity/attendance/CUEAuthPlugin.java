@@ -60,7 +60,9 @@ public class CUEAuthPlugin extends Plugin {
         if (dataIntercepted) return;
         dataIntercepted = true;
 
-        Log.i(TAG, "Authentic university attendance intercepted! Closing portal dialog...");
+        if (rawJson != null) {
+            Log.i(TAG, "Authentic attendance intercepted (len=" + rawJson.length() + "): " + rawJson.substring(0, Math.min(250, rawJson.length())));
+        }
 
         getActivity().runOnUiThread(() -> {
             try {
@@ -124,13 +126,28 @@ public class CUEAuthPlugin extends Plugin {
         "    return '';" +
         "  }" +
         "" +
+        "  var lastCountData = null;" +
         "  function checkAndNotify(url, bodyText) {" +
-        "    if (!bodyText || bodyText.length < 20) return;" +
+        "    if (!bodyText || bodyText.length < 10) return;" +
         "    var u = (url || '').toLowerCase();" +
+        "    if (u.indexOf('getattendancecount') !== -1) {" +
+        "      try {" +
+        "        lastCountData = JSON.parse(bodyText);" +
+        "      } catch(e) {}" +
+        "    }" +
         "    if (u.indexOf('coursewiseattendance') !== -1 || u.indexOf('attendancecbcs') !== -1 || u.indexOf('getattendancedetailsbysemester') !== -1) {" +
         "      console.log('[CUE Hook] Intercepted course attendance response!');" +
         "      try {" +
-        "        window.CUEBridge.onAttendanceResponse(bodyText, getProfile(), getToken());" +
+        "        var payload = bodyText;" +
+        "        if (lastCountData) {" +
+        "          try {" +
+        "            payload = JSON.stringify({" +
+        "              countInfo: lastCountData," +
+        "              courseData: JSON.parse(bodyText)" +
+        "            });" +
+        "          } catch(e) {}" +
+        "        }" +
+        "        window.CUEBridge.onAttendanceResponse(payload, getProfile(), getToken());" +
         "      } catch(e) {}" +
         "    }" +
         "  }" +
