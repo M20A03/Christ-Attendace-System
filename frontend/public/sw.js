@@ -1,80 +1,81 @@
 /**
- * Christ Attendance Viewer - Service Worker
- * Caches application shell assets for instant launch without caching dynamic API data.
+ * Christ Attendance - High-Performance Service Worker
+ * Version: v3-confessions-live
+ * Enforces network-first caching so students ALWAYS see the latest updates.
  */
 
-const CACHE_NAME = "cu-attendance-shell-v1";
+const CACHE_NAME = "cu-attendance-v3-confessions";
 const SHELL_ASSETS = [
-  "/",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
 
-// Install: cache application shell
+// Install: Cache essential static icon assets and skip waiting immediately
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(SHELL_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
-// Activate: clean up older cache versions
+// Activate: Delete ALL older caches to ensure users get the newest build
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log("[SW] Deleting old cache:", key);
             return caches.delete(key);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch: Network-first for dynamic navigation & API, Cache-first fallback for static shell assets
+// Fetch: Pure Network-First for navigation and HTML pages to prevent stale cache
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  const url = new URL(request.url);
 
-  // Strictly NEVER cache API calls or auth requests (dynamic on-demand only)
+  // Strictly network-only for API and Keycloak auth
   if (
     url.pathname.includes("/auth/") ||
     url.pathname.includes("/attendance") ||
     url.pathname.includes("/marks") ||
+    url.pathname.includes("/hostel") ||
+    url.pathname.includes("/confessions") ||
     url.pathname.startsWith("/api/")
   ) {
-    return; // Pass through to live network
+    return;
   }
 
-  // Shell assets caching strategy
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached shell asset and fetch fresh version in background
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
+  // For HTML / Navigation requests: Always fetch from network first so updates are instant
+  if (request.mode === "navigate" || request.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return caches.match(request);
+      })
+    );
+    return;
+  }
 
-      return fetch(event.request).catch(() => {
-        // Fallback for navigation requests
-        if (event.request.mode === "navigate") {
-          return caches.match("/");
+  // For static assets: Network first, fallback to cache
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === "basic") {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
-      });
-    })
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
-

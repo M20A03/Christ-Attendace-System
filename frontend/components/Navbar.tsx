@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { StudentInfo } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
-import { LogOut, RefreshCw, ShieldCheck } from "lucide-react";
+import { LogOut, RefreshCw, ShieldCheck, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -59,10 +60,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right actions: Theme toggle, Refresh, Logout */}
+        {/* Right actions: Theme toggle, Download app, Refresh, Logout */}
         <div className="flex items-center gap-2">
           {/* Theme Toggle Button */}
           <ThemeToggle />
+
+          <Link
+            href="/download"
+            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200/60 dark:border-slate-800"
+            title="Download App for Android or iPhone"
+          >
+            <Download className="w-4 h-4" />
+          </Link>
 
           {onRefresh && (
             <motion.button

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginWithCredentials } from "@/lib/api";
 import { hasActiveSession, initiateKeycloakLogin } from "@/lib/auth";
@@ -14,6 +15,7 @@ import {
   CalendarCheck,
   FileSpreadsheet,
   Award,
+  Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -130,11 +132,19 @@ export default function LandingPage() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
+          <Link
+            href="/download"
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-xs flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Get App</span>
+          </Link>
+
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleDemoLogin}
             type="button"
-            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors shadow-xs"
+            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors shadow-xs hidden sm:block"
           >
             Sample Preview
           </motion.button>
@@ -150,7 +160,7 @@ export default function LandingPage() {
           </div>
         )}
 
-        <div className="text-center space-y-2 mb-6">
+        <div className="text-center space-y-2 mb-5">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
             Know your attendance before walking into class.
           </h1>
@@ -158,6 +168,32 @@ export default function LandingPage() {
             Live subject tracking, safe-skip predictions, and CIA marks synced directly from the official Christ University portal.
           </p>
         </div>
+
+        {/* Dedicated Android APK & iOS Install Banner */}
+        <Link
+          href="/download"
+          className="w-full mb-6 p-4 rounded-3xl bg-slate-900 dark:bg-slate-850 text-white flex items-center justify-between border border-slate-800 shadow-md hover:border-slate-700 transition-all group select-none"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
+              <Download className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold tracking-tight">
+                  Download / Install App
+                </span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-400 text-slate-950">
+                  Android & iOS
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Download APK for Android • 3-step setup for iPhone
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+        </Link>
 
         {/* Login Card */}
         <div className="w-full bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800/80 p-6 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] space-y-5">
