@@ -105,20 +105,24 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 p-1 flex items-center justify-center border border-slate-200/90 dark:border-slate-700/80 shadow-xs select-none overflow-hidden"
+            className="w-10 h-10 rounded-2xl bg-slate-950 dark:bg-slate-900 flex flex-col items-center justify-center border border-slate-800 dark:border-slate-700 shadow-xs select-none px-1"
           >
-            <img
-              src="/christ-emblem.png"
-              alt="Christ University Emblem"
-              className="w-full h-full object-contain"
-            />
+            <span className="font-mono text-[9px] font-black tracking-wider text-white leading-none">
+              CHRIST
+            </span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="w-1 h-1 rounded-full bg-emerald-400" />
+              <span className="text-[7px] font-mono font-bold text-slate-400 tracking-widest">
+                SYS
+              </span>
+            </div>
           </motion.div>
           <div>
             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight block">
-              Christ University
+              Christ Portal
             </span>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono block">
-              Student Attendance & Academic Suite
+              Academic & Attendance Suite
             </span>
           </div>
         </div>
