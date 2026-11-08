@@ -109,9 +109,13 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="w-10 h-10 rounded-2xl bg-[#0f2b5c] text-white flex items-center justify-center font-bold text-xs tracking-wider border border-[#1e3a8a] shadow-sm select-none"
+            className="w-10 h-10 rounded-2xl bg-white p-1 flex items-center justify-center border border-slate-200/90 shadow-sm select-none overflow-hidden"
           >
-            CU
+            <img
+              src="/christ-emblem.png"
+              alt="Christ University Emblem"
+              className="w-full h-full object-contain"
+            />
           </motion.div>
           <div>
             <span className="font-bold text-slate-900 text-sm tracking-tight block">

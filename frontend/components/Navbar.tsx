@@ -36,14 +36,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-[0_1px_8px_rgba(15,43,92,0.03)]">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Left: Christ University crest badge & student info */}
+        {/* Left: Christ University official crest emblem & student info */}
         <div className="flex items-center gap-3">
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-2xl bg-[#0f2b5c] text-white flex items-center justify-center font-bold text-xs tracking-wider border border-[#1e3a8a] shadow-sm select-none"
+            className="w-10 h-10 rounded-2xl bg-white p-1 flex items-center justify-center border border-slate-200/90 shadow-sm select-none overflow-hidden"
           >
-            CU
+            <img
+              src="/christ-emblem.png"
+              alt="Christ University Emblem"
+              className="w-full h-full object-contain"
+            />
           </motion.div>
           <div>
             <div className="flex items-center gap-1.5">
