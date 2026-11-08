@@ -150,26 +150,23 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Day-Wise Class Schedule Section */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Class Schedule & Timetable
-              </h3>
+        {/* Today's Classes Section (Shown ONLY when real classes are scheduled for today) */}
+        {data?.today_classes && data.today_classes.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#0f2b5c] dark:text-blue-400" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Today's Schedule
+                </h3>
+              </div>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-mono font-medium">
+                {data.today_classes.length} {data.today_classes.length === 1 ? "class" : "classes"}
+              </span>
             </div>
-            <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 font-medium">
-              Mon – Sat View
-            </span>
-          </div>
-
-          {loading ? (
-            <SkeletonList />
-          ) : data ? (
-            <TodayClasses classes={data.today_classes} subjects={data.subjects} />
-          ) : null}
-        </section>
+            <TodayClasses classes={data.today_classes} />
+          </section>
+        )}
 
         {/* Subject Cards Grid Section */}
         <section className="space-y-3">
@@ -200,7 +197,6 @@ export default function DashboardPage() {
                   key={idx}
                   subject={sub}
                   todayClasses={data.today_classes}
-                  allSubjects={data.subjects}
                 />
               ))}
             </div>
