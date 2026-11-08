@@ -96,8 +96,8 @@ export interface AttendanceMathResult {
 
 /**
  * Calculates authentic Christ University attendance metrics including:
- * - Blue Form (Duty Leave for hackathons, fests, sports, symposiums)
- * - Yellow Form (Medical Leave with approved certificate)
+ * - Blue Form (Medical Leave: approved medical certificates / hospitalization)
+ * - Yellow Form (Duty Leave: co-curricular, hackathons, fests, sports, symposiums)
  */
 export function calculateAttendanceMetrics(
   attended: number,
@@ -164,7 +164,7 @@ export function calculateAttendanceMetrics(
     eligibility = {
       status: "condonation",
       label: "Eligible with Form (75%–85%)",
-      description: "Eligible for End-Sem Exam with approved Yellow/Blue form or condonation fee.",
+      description: "Eligible for End-Sem Exam with approved Blue (Medical) / Yellow (Duty) form or condonation.",
     };
   } else {
     eligibility = {

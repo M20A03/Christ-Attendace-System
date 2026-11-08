@@ -345,8 +345,8 @@ export default function CalculatorPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span>Blue Form (Duty)</span>
+                  <label className="block text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Blue Form (Medical)</span>
                   </label>
                   <input
                     type="number"
@@ -356,11 +356,12 @@ export default function CalculatorPage() {
                     placeholder="0"
                     className="w-full px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 text-sm font-semibold text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
+                  <span className="text-[10px] text-slate-400 block mt-1">Medical Certificates</span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span>Yellow Form (Med)</span>
+                  <label className="block text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Yellow Form (Duty)</span>
                   </label>
                   <input
                     type="number"
@@ -370,7 +371,22 @@ export default function CalculatorPage() {
                     placeholder="0"
                     className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 text-sm font-semibold text-amber-900 dark:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-600"
                   />
+                  <span className="text-[10px] text-slate-400 block mt-1">Fests & Hackathons</span>
                 </div>
+              </div>
+
+              {/* Form Rule Clarification */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
+                <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200">
+                  <HelpCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <span>Christ University Form Guidelines:</span>
+                </div>
+                <p className="leading-relaxed">
+                  • <strong className="text-blue-600 dark:text-blue-400">Blue Form (Medical Leave):</strong> Submitted with hospital/doctor certificate to condone sickness absence.
+                </p>
+                <p className="leading-relaxed">
+                  • <strong className="text-amber-600 dark:text-amber-400">Yellow Form (Duty Leave):</strong> Co-curricular representation, college fests, sports, or hackathons credited directly into attendance.
+                </p>
               </div>
 
               {/* Target Attendance Slider */}

@@ -285,7 +285,7 @@ export default function LandingPage() {
                 Blue & Yellow Form Claims
               </span>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                Add your duty leave (fests & hackathons) and approved medical hours to project your true exam eligibility.
+                Factor in your approved Blue Form (medical leave) and Yellow Form (duty leave for fests, sports & hackathons) to project your true exam eligibility.
               </p>
             </div>
           </div>
