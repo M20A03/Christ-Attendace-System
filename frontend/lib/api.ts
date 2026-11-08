@@ -292,3 +292,66 @@ export async function logoutUser() {
   }
 }
 
+// ==============================================================================
+// CONFESSIONS API CLIENT
+// ==============================================================================
+
+export interface ConfessionComment {
+  id: string;
+  confession_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ConfessionItem {
+  id: string;
+  content: string;
+  campus: string;
+  category: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  comments?: ConfessionComment[];
+}
+
+export async function fetchConfessions(
+  campus?: string,
+  category?: string,
+  sortBy: string = "newest"
+): Promise<ConfessionItem[]> {
+  const params = new URLSearchParams();
+  if (campus && campus !== "All Campuses") params.append("campus", campus);
+  if (category && category !== "All") params.append("category", category);
+  if (sortBy) params.append("sort_by", sortBy);
+
+  const queryStr = params.toString() ? `?${params.toString()}` : "";
+  return request<ConfessionItem[]>(`/confessions${queryStr}`, { method: "GET" });
+}
+
+export async function submitConfession(
+  content: string,
+  campus: string = "Central Campus",
+  category: string = "Campus Life"
+): Promise<ConfessionItem> {
+  return request<ConfessionItem>("/confessions", {
+    method: "POST",
+    body: JSON.stringify({ content, campus, category }),
+  });
+}
+
+export async function upvoteConfession(confessionId: string): Promise<{ success: boolean; likes_count: number }> {
+  return request<{ success: boolean; likes_count: number }>(`/confessions/${confessionId}/like`, {
+    method: "POST",
+  });
+}
+
+export async function submitConfessionComment(
+  confessionId: string,
+  content: string
+): Promise<ConfessionComment> {
+  return request<ConfessionComment>(`/confessions/${confessionId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}
+

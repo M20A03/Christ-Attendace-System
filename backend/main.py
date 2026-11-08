@@ -5,7 +5,7 @@ and authenticated proxying to Christ University attendance/marks endpoints.
 """
 import os
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +42,10 @@ from models import (
     MarksResponse,
     LogoutRequest,
     HostelBiometricInfo,
+    ConfessionCreate,
+    ConfessionResponse,
+    ConfessionCommentCreate,
+    ConfessionCommentResponse,
 )
 
 # Rate limiter setup (5 requests per minute per IP for exchange endpoint)
@@ -468,6 +472,104 @@ async def logout(
         "success": True,
         "message": "Logged out successfully",
     }
+
+
+# ==============================================================================
+# ANONYMOUS CAMPUS CONFESSIONS ENDPOINTS
+# ==============================================================================
+
+@app.get("/confessions", response_model=List[ConfessionResponse], tags=["Confessions"])
+async def list_confessions(
+    campus: Optional[str] = None,
+    category: Optional[str] = None,
+    sort_by: Optional[str] = "newest",
+    limit: int = 50,
+):
+    """
+    List anonymous Christ University campus confessions.
+    Supports filtering by campus and category, and sorting by newest or popular.
+    """
+    records = await db.get_confessions(campus=campus, category=category, sort_by=sort_by, limit=limit)
+    response = []
+    for c in records:
+        comments_list = [
+            ConfessionCommentResponse(
+                id=cm.id,
+                confession_id=cm.confession_id,
+                content=cm.content,
+                created_at=cm.created_at.isoformat() if cm.created_at else "",
+            )
+            for cm in getattr(c, "comments", [])
+        ]
+        response.append(
+            ConfessionResponse(
+                id=c.id,
+                content=c.content,
+                campus=c.campus or "Central Campus",
+                category=c.category or "Campus Life",
+                likes_count=c.likes_count or 0,
+                comments_count=len(comments_list),
+                created_at=c.created_at.isoformat() if c.created_at else "",
+                comments=comments_list,
+            )
+        )
+    return response
+
+
+@app.post("/confessions", response_model=ConfessionResponse, tags=["Confessions"])
+async def post_confession(body: ConfessionCreate):
+    """
+    Post a 100% anonymous confession. Never links to student identity or credentials.
+    """
+    if not body.content or not body.content.strip():
+        raise HTTPException(status_code=400, detail="Confession content cannot be empty")
+    
+    if len(body.content.strip()) > 2000:
+        raise HTTPException(status_code=400, detail="Confession exceeds 2000 character limit")
+
+    c = await db.create_confession(
+        content=body.content.strip(),
+        campus=body.campus or "Central Campus",
+        category=body.category or "Campus Life",
+    )
+
+    return ConfessionResponse(
+        id=c.id,
+        content=c.content,
+        campus=c.campus,
+        category=c.category,
+        likes_count=c.likes_count,
+        comments_count=0,
+        created_at=c.created_at.isoformat() if c.created_at else "",
+        comments=[],
+    )
+
+
+@app.post("/confessions/{confession_id}/like", tags=["Confessions"])
+async def like_confession(confession_id: str):
+    """Upvote / heart a confession anonymously."""
+    likes = await db.like_confession(confession_id)
+    if likes is None:
+        raise HTTPException(status_code=404, detail="Confession not found")
+    return {"success": True, "likes_count": likes}
+
+
+@app.post("/confessions/{confession_id}/comments", response_model=ConfessionCommentResponse, tags=["Confessions"])
+async def add_comment(confession_id: str, body: ConfessionCommentCreate):
+    """Add an anonymous reply/comment to a confession."""
+    if not body.content or not body.content.strip():
+        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+
+    comment = await db.add_confession_comment(confession_id, body.content.strip())
+    if not comment:
+        raise HTTPException(status_code=404, detail="Confession not found")
+
+    return ConfessionCommentResponse(
+        id=comment.id,
+        confession_id=comment.confession_id,
+        content=comment.content,
+        created_at=comment.created_at.isoformat() if comment.created_at else "",
+    )
 
 
 if __name__ == "__main__":

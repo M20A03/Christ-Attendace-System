@@ -95,3 +95,31 @@ class HostelBiometricInfo(BaseModel):
 class LogoutRequest(BaseModel):
     user_id: Optional[str] = None
 
+
+class ConfessionCreate(BaseModel):
+    content: str
+    campus: Optional[str] = "Central Campus"
+    category: Optional[str] = "Campus Life"
+
+
+class ConfessionCommentCreate(BaseModel):
+    content: str
+
+
+class ConfessionCommentResponse(BaseModel):
+    id: str
+    confession_id: str
+    content: str
+    created_at: str
+
+
+class ConfessionResponse(BaseModel):
+    id: str
+    content: str
+    campus: str
+    category: str
+    likes_count: int = 0
+    comments_count: int = 0
+    created_at: str
+    comments: List[ConfessionCommentResponse] = []
+
