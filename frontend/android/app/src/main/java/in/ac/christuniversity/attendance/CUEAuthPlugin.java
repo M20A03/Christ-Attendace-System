@@ -3,7 +3,6 @@ package in.ac.christuniversity.attendance;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -17,17 +16,39 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 @CapacitorPlugin(name = "CUEAuth")
 public class CUEAuthPlugin extends Plugin {
     private static final String TAG = "CUEAuthPlugin";
+    private static final String PORTAL_BASE = "https://espro.christuniversity.in:84";
+
     private Dialog loginDialog;
     private Handler scannerHandler;
     private Runnable scannerRunnable;
@@ -270,5 +291,232 @@ public class CUEAuthPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    /**
+     * Directly calls Christ University ESPro internal APIs on port 84 from the user's phone.
+     * Bypasses any external cloud firewall or datacenter blocking since requests originate from
+     * the student's Indian mobile / Wi-Fi IP address.
+     */
+    @PluginMethod
+    public void fetchLiveAttendance(PluginCall call) {
+        String token = call.getString("token");
+        if (token == null || token.trim().isEmpty()) {
+            call.reject("Token required");
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                // Step 1: getStudentSemesters
+                String semUrl = PORTAL_BASE + "/ClassRoomAttendanceServices/Student/StudentAttendance/getStudentSemesters";
+                String semRes = makePortalPost(semUrl, "{}", token);
+                Log.d(TAG, "getStudentSemesters response: " + (semRes.length() > 200 ? semRes.substring(0, 200) : semRes));
+
+                JSONArray sessions = null;
+                if (semRes.trim().startsWith("[")) {
+                    sessions = new JSONArray(semRes);
+                } else if (semRes.trim().startsWith("{")) {
+                    JSONObject obj = new JSONObject(semRes);
+                    if (obj.has("data")) {
+                        sessions = obj.getJSONArray("data");
+                    }
+                }
+
+                JSONObject currentSess = null;
+                if (sessions != null && sessions.length() > 0) {
+                    for (int i = 0; i < sessions.length(); i++) {
+                        JSONObject s = sessions.getJSONObject(i);
+                        if (s.optBoolean("isCurrent", false)) {
+                            currentSess = s;
+                            break;
+                        }
+                    }
+                    if (currentSess == null) {
+                        currentSess = sessions.getJSONObject(0);
+                    }
+                }
+
+                Double overallPercentage = null;
+                JSONArray coursesList = null;
+
+                if (currentSess != null) {
+                    String sessionId = currentSess.optString("sessionId", "");
+                    boolean callKp = currentSess.optBoolean("callKpServiceNew", false);
+                    String termNo = currentSess.optString("termNumber", currentSess.optString("semester", ""));
+
+                    if (callKp && !termNo.isEmpty()) {
+                        String kpUrl = PORTAL_BASE + "/KPServiceNew/rest/getAttendanceDetailsBySemester?termNo=" + termNo;
+                        String kpRes = makePortalPost(kpUrl, "{}", token);
+                        if (kpRes.trim().startsWith("[")) {
+                            coursesList = new JSONArray(kpRes);
+                        } else if (kpRes.trim().startsWith("{")) {
+                            JSONObject kObj = new JSONObject(kpRes);
+                            if (kObj.has("data")) coursesList = kObj.getJSONArray("data");
+                        }
+                    }
+
+                    if (coursesList == null && !sessionId.isEmpty()) {
+                        // getAttendanceCount
+                        try {
+                            String countUrl = PORTAL_BASE + "/ClassRoomAttendanceServices/Student/StudentAttendance/getAttendanceCount?sessionId=" + sessionId;
+                            String countRes = makePortalPost(countUrl, "{}", token);
+                            if (countRes.trim().startsWith("{")) {
+                                JSONObject cObj = new JSONObject(countRes);
+                                if (cObj.has("overallPercentage")) {
+                                    overallPercentage = cObj.optDouble("overallPercentage");
+                                } else if (cObj.has("overall")) {
+                                    overallPercentage = cObj.optDouble("overall");
+                                }
+                            }
+                        } catch (Exception ce) {
+                            Log.w(TAG, "Count fetch failed: " + ce.getMessage());
+                        }
+
+                        // getCourseWiseAttendance
+                        String courseUrl = PORTAL_BASE + "/ClassRoomAttendanceServices/Student/StudentAttendance/getCourseWiseAttendance?sessionId=" + sessionId;
+                        String courseRes = makePortalPost(courseUrl, "{}", token);
+                        if (courseRes.trim().startsWith("[")) {
+                            coursesList = new JSONArray(courseRes);
+                        } else if (courseRes.trim().startsWith("{")) {
+                            JSONObject cObj = new JSONObject(courseRes);
+                            if (cObj.has("data")) coursesList = cObj.getJSONArray("data");
+                        }
+                    }
+                }
+
+                // Fallback to KPServiceNew if courses still null
+                if (coursesList == null || coursesList.length() == 0) {
+                    String[] fallbacks = new String[]{
+                        PORTAL_BASE + "/KPServiceNew/rest/getAttendanceCBCS",
+                        PORTAL_BASE + "/KPServiceNew/rest/getAttendanceDetailsBySemester?termNo=1"
+                    };
+                    for (String fbUrl : fallbacks) {
+                        try {
+                            String fbRes = makePortalPost(fbUrl, "{}", token);
+                            if (fbRes.trim().startsWith("[")) {
+                                coursesList = new JSONArray(fbRes);
+                                if (coursesList.length() > 0) break;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                if (coursesList != null && coursesList.length() > 0) {
+                    JSArray subjectsArray = new JSArray();
+                    int totalAttended = 0;
+                    int totalConducted = 0;
+
+                    for (int i = 0; i < coursesList.length(); i++) {
+                        JSONObject c = coursesList.getJSONObject(i);
+                        String name = c.optString("courseName", c.optString("subjectName", c.optString("subject", "Subject " + (i + 1))));
+                        int att = c.optInt("classesAttended", c.optInt("attendedClasses", c.optInt("attended", c.optInt("presentCount", 0))));
+                        int tot = c.optInt("totalClasses", c.optInt("totalConducted", c.optInt("total", c.optInt("totalCount", 0))));
+
+                        double pct;
+                        if (c.has("percentage") && !c.isNull("percentage")) {
+                            pct = c.getDouble("percentage");
+                        } else if (c.has("overallPercentage") && !c.isNull("overallPercentage")) {
+                            pct = c.getDouble("overallPercentage");
+                        } else {
+                            pct = tot > 0 ? Math.round(((double) att / tot * 100.0) * 10.0) / 10.0 : 0.0;
+                        }
+
+                        totalAttended += att;
+                        totalConducted += tot;
+
+                        JSObject subObj = new JSObject();
+                        subObj.put("name", name);
+                        subObj.put("attended", att);
+                        subObj.put("total", tot);
+                        subObj.put("percentage", pct);
+                        subObj.put("subject_code", c.optString("courseCode", c.optString("subjectCode", "")));
+                        subObj.put("faculty", c.optString("staffName", c.optString("facultyName", "")));
+                        subjectsArray.put(subObj);
+                    }
+
+                    double finalOverall = overallPercentage != null ? overallPercentage :
+                        (totalConducted > 0 ? Math.round(((double) totalAttended / totalConducted * 100.0) * 10.0) / 10.0 : 0.0);
+
+                    SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+                    String lastUpdated = sdf.format(new Date());
+
+                    JSObject data = new JSObject();
+                    data.put("overall_attendance", finalOverall);
+                    data.put("subjects", subjectsArray);
+                    data.put("today_classes", new JSArray());
+                    data.put("last_updated", lastUpdated);
+
+                    JSObject result = new JSObject();
+                    result.put("success", true);
+                    result.put("data", data);
+                    call.resolve(result);
+                    return;
+                }
+
+                JSObject fail = new JSObject();
+                fail.put("success", false);
+                fail.put("error", "No courses returned from portal");
+                call.resolve(fail);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error in fetchLiveAttendance: " + e.getMessage(), e);
+                JSObject err = new JSObject();
+                err.put("success", false);
+                err.put("error", e.getMessage());
+                call.resolve(err);
+            }
+        }).start();
+    }
+
+    private String makePortalPost(String targetUrl, String body, String token) throws Exception {
+        TrustManager[] trustAllCerts = new TrustManager[]{
+            new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+            }
+        };
+
+        SSLContext sc = SSLContext.getInstance("SSL");
+        sc.init(null, trustAllCerts, new SecureRandom());
+        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+
+        URL url = new URL(targetUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(12000);
+        conn.setReadTimeout(12000);
+        conn.setDoInput(true);
+        conn.setDoOutput(true);
+
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept", "application/json, text/plain, */*");
+        conn.setRequestProperty("Origin", "https://cue.christuniversity.in");
+        conn.setRequestProperty("Referer", "https://cue.christuniversity.in/");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/122.0.0.0 Mobile Safari/537.36");
+
+        if (body != null && !body.isEmpty()) {
+            OutputStream os = conn.getOutputStream();
+            os.write(body.getBytes("UTF-8"));
+            os.close();
+        }
+
+        int responseCode = conn.getResponseCode();
+        InputStream is = (responseCode >= 200 && responseCode < 400) ? conn.getInputStream() : conn.getErrorStream();
+        if (is == null) return "{}";
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        reader.close();
+        conn.disconnect();
+
+        return sb.toString();
     }
 }

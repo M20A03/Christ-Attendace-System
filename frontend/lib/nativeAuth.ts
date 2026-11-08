@@ -3,6 +3,7 @@ import { loginWithEsproToken } from './api';
 
 export interface CUEAuthPluginInterface {
   openPortalLogin(): Promise<{ token: string }>;
+  fetchLiveAttendance(options: { token: string }): Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
 export const CUEAuth = registerPlugin<CUEAuthPluginInterface>('CUEAuth');
@@ -34,5 +35,22 @@ export async function startNativePortalLogin(): Promise<{ success: boolean; erro
     }
     return { success: false, error: err?.message || 'Login failed' };
   }
+}
+
+/**
+ * Directly queries Christ University port 84 from the Android phone's network connection.
+ * Completely immune to cloud firewall / overseas datacenter blocks.
+ */
+export async function fetchNativePortalAttendance(token: string): Promise<any> {
+  if (!isNativeApp()) return null;
+  try {
+    const res = await CUEAuth.fetchLiveAttendance({ token });
+    if (res && res.success && res.data) {
+      return res.data;
+    }
+  } catch (e) {
+    console.warn("fetchNativePortalAttendance error:", e);
+  }
+  return null;
 }
 

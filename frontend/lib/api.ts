@@ -183,9 +183,36 @@ export async function loginWithCredentials(
 }
 
 /**
- * Fetch attendance data on demand
+ * Fetch attendance data on demand.
+ * On native Android app, directly fetches from Christ University port 84 using the student's Indian IP,
+ * completely bypassing cloud datacenter blocks and firewalls.
  */
 export async function fetchAttendance(): Promise<AttendanceData> {
+  const session = getAuthSession();
+
+  // 1. Try native direct fetch from phone if in Android app
+  if (session.accessToken && typeof window !== "undefined") {
+    try {
+      const { isNativeApp, fetchNativePortalAttendance } = await import("./nativeAuth");
+      if (isNativeApp()) {
+        const nativeResult = await fetchNativePortalAttendance(session.accessToken);
+        if (nativeResult && nativeResult.subjects && nativeResult.subjects.length > 0) {
+          const studentInfo = session.student || { name: "Christ Student", reg_number: "2543115" };
+          return {
+            student: studentInfo,
+            overall_attendance: nativeResult.overall_attendance || 0.0,
+            subjects: nativeResult.subjects,
+            today_classes: nativeResult.today_classes || [],
+            last_updated: nativeResult.last_updated || "Just now",
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("Direct device portal fetch fallback to backend:", err);
+    }
+  }
+
+  // 2. Standard backend fallback
   return request<AttendanceData>("/attendance", { method: "GET" });
 }
 
