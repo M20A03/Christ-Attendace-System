@@ -45,17 +45,6 @@ export const GRADE_POINTS_4_SCALE: Record<string, { point: number; label: string
   F: { point: 0.0, label: "Less than 40% (0.0 pts)" },
 };
 
-export const GRADE_POINTS_10_SCALE: Record<string, { point: number; label: string }> = {
-  O: { point: 10.0, label: "90–100% (10.0 pts)" },
-  "A+": { point: 9.0, label: "80–89% (9.0 pts)" },
-  A: { point: 8.0, label: "70–79% (8.0 pts)" },
-  "B+": { point: 7.0, label: "60–69% (7.0 pts)" },
-  B: { point: 6.0, label: "55–59% (6.0 pts)" },
-  C: { point: 5.0, label: "50–54% (5.0 pts)" },
-  P: { point: 4.0, label: "40–49% (4.0 pts)" },
-  F: { point: 0.0, label: "< 40% (0.0 pts)" },
-};
-
 /** Convert marks percentage to CHRIST 4.0 scale letter grade */
 export function getGradeFromMarks(marks: number | string): string {
   const m = Number(marks);

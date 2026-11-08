@@ -41,7 +41,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased selection:bg-emerald-500/20 selection:text-emerald-600">
+      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-[#0f2b5c]/15 selection:text-[#0f2b5c]">
         {children}
         <PWAInstallPrompt />
         <script

@@ -10,7 +10,6 @@ import {
   simulateAttendance,
   CHRIST_MARKS_RULES,
   GRADE_POINTS_4_SCALE,
-  GRADE_POINTS_10_SCALE,
   getGradeFromMarks,
   getResultDivision,
   CIA_PRESETS,
@@ -29,68 +28,67 @@ import {
   Award,
   BookOpen,
   Calendar,
-  FileCheck2,
   Target,
   Sparkles,
-  Trash2,
-  RotateCcw,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function CalculatorPage() {
   const [activeTab, setActiveTab] = useState<"attendance" | "marks">("attendance");
-  const [subjects, setSubjects] = useState<SubjectAttendance[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // ==========================================
-  // TAB 1: ATTENDANCE & SAFE-SKIPS STATE
+  // TAB 1: ATTENDANCE & SAFE SKIPS STATE
   // ==========================================
-  const [selectedSubjectIdx, setSelectedSubjectIdx] = useState<number | "overall">("overall");
+  const [subjects, setSubjects] = useState<SubjectAttendance[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [selectedSubjectIdx, setSelectedSubjectIdx] = useState<string>("overall");
+
   const [conducted, setConducted] = useState<number>(60);
   const [attended, setAttended] = useState<number>(51);
   const [blueFormHours, setBlueFormHours] = useState<number>(0);
   const [yellowFormHours, setYellowFormHours] = useState<number>(0);
   const [targetPercentage, setTargetPercentage] = useState<number>(85);
+
+  // Simulation controls
   const [simExtraAttended, setSimExtraAttended] = useState<number>(0);
   const [simExtraMissed, setSimExtraMissed] = useState<number>(0);
 
-  // Fetch real subjects on mount
+  // Load real subjects on mount
   useEffect(() => {
-    async function loadData() {
+    async function loadSubjects() {
       try {
-        const res = await fetchAttendance();
-        if (res.subjects && res.subjects.length > 0) {
-          setSubjects(res.subjects);
-          // Default to overall sum
-          const totConducted = res.subjects.reduce((sum, s) => sum + s.total, 0);
-          const totAttended = res.subjects.reduce((sum, s) => sum + s.attended, 0);
-          if (totConducted > 0) {
-            setConducted(totConducted);
-            setAttended(totAttended);
+        const attData = await fetchAttendance();
+        if (attData.subjects && attData.subjects.length > 0) {
+          setSubjects(attData.subjects);
+          const totalConducted = attData.subjects.reduce((sum, s) => sum + s.total, 0);
+          const totalAttended = attData.subjects.reduce((sum, s) => sum + s.attended, 0);
+          if (totalConducted > 0) {
+            setConducted(totalConducted);
+            setAttended(totalAttended);
           }
         }
-      } catch {
-        // Fallback default demo data
+      } catch (err) {
         setConducted(60);
         setAttended(52);
       } finally {
-        setLoading(false);
+        setLoadingSubjects(false);
       }
     }
-    loadData();
+    loadSubjects();
   }, []);
 
-  // When user selects a specific subject from their enrolled list
-  const handleSubjectSelect = (val: string) => {
-    if (val === "overall") {
+  const handleSubjectSelect = (idxStr: string) => {
+    if (idxStr === "overall") {
       setSelectedSubjectIdx("overall");
-      const totConducted = subjects.reduce((sum, s) => sum + s.total, 0);
-      const totAttended = subjects.reduce((sum, s) => sum + s.attended, 0);
-      setConducted(totConducted || 60);
-      setAttended(totAttended || 51);
+      const totalConducted = subjects.reduce((sum, s) => sum + s.total, 0);
+      const totalAttended = subjects.reduce((sum, s) => sum + s.attended, 0);
+      setConducted(totalConducted || 60);
+      setAttended(totalAttended || 51);
     } else {
-      const idx = Number(val);
-      setSelectedSubjectIdx(idx);
+      setSelectedSubjectIdx(idxStr);
+      const idx = Number(idxStr);
       const sub = subjects[idx];
       if (sub) {
         setConducted(sub.total);
@@ -122,9 +120,8 @@ export default function CalculatorPage() {
   );
 
   // ==========================================
-  // TAB 2: MARKS & ESE PREDICTOR STATE
+  // TAB 2: MARKS & ESE PREDICTOR STATE (Sole 4.0 Scale)
   // ==========================================
-  const [scaleMode, setScaleMode] = useState<"4.0" | "10.0">("4.0");
   const [ciaPresetKey, setCiaPresetKey] = useState<string>("50_50");
   const [eseConductedMax, setEseConductedMax] = useState<number>(100);
   const [eseWeightage, setEseWeightage] = useState<number>(50);
@@ -173,20 +170,21 @@ export default function CalculatorPage() {
     targetGoal
   );
 
-  // GPA calculation
-  const activeGradeScale = scaleMode === "4.0" ? GRADE_POINTS_4_SCALE : GRADE_POINTS_10_SCALE;
+  // Official Christ University 4.0 Scale Calculations
   const currentTotalCredits = gpaCourses.reduce((sum, c) => sum + (c.credits || 0), 0);
   const currentTotalPoints = gpaCourses.reduce(
-    (sum, c) => sum + (c.credits || 0) * (activeGradeScale[c.grade]?.point || 0),
+    (sum, c) => sum + (c.credits || 0) * (GRADE_POINTS_4_SCALE[c.grade]?.point || 0),
     0
   );
   const calculatedSgpa =
     currentTotalCredits > 0 ? (currentTotalPoints / currentTotalCredits).toFixed(2) : "0.00";
 
   let cumulativeCgpa = calculatedSgpa;
-  if (prevCgpa && prevCredits && Number(prevCredits) > 0) {
-    const totalOldPoints = Number(prevCgpa) * Number(prevCredits);
-    const totalAllCredits = Number(prevCredits) + currentTotalCredits;
+  const pCgpa = parseFloat(prevCgpa);
+  const pCredits = parseFloat(prevCredits);
+  if (!isNaN(pCgpa) && !isNaN(pCredits) && pCredits > 0) {
+    const totalOldPoints = pCgpa * pCredits;
+    const totalAllCredits = pCredits + currentTotalCredits;
     cumulativeCgpa = ((totalOldPoints + currentTotalPoints) / totalAllCredits).toFixed(2);
   }
 
@@ -199,571 +197,679 @@ export default function CalculatorPage() {
   const resultDivision = getResultDivision(averagePercentage);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 pb-24 selection:bg-emerald-500/20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 selection:bg-[#0f2b5c]/10 selection:text-[#0f2b5c]">
       <Navbar student={getAuthSession().student} />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Top Segmented Navigation Switcher */}
+        {/* Top High-Tech Segmented Switcher */}
         <div className="flex items-center justify-center">
-          <div className="inline-flex p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="relative inline-flex p-1.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_12px_rgba(15,43,92,0.04)]">
             <button
               onClick={() => setActiveTab("attendance")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-                activeTab === "attendance"
-                  ? "bg-[#0f2b5c] text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+                activeTab === "attendance" ? "text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Calendar className="w-4 h-4" />
               <span>Attendance & Safe Skips</span>
             </button>
+
             <button
               onClick={() => setActiveTab("marks")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-                activeTab === "marks"
-                  ? "bg-[#0f2b5c] text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+                activeTab === "marks" ? "text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Award className="w-4 h-4" />
               <span>Marks & ESE Predictor</span>
             </button>
+
+            {/* Sliding spring background pill */}
+            <motion.div
+              layoutId="calcTabPill"
+              className="absolute inset-1.5 rounded-xl bg-[#0f2b5c] shadow-sm pointer-events-none"
+              style={{
+                left: activeTab === "attendance" ? "6px" : "calc(50% + 2px)",
+                width: "calc(50% - 8px)",
+              }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            />
           </div>
         </div>
 
         {/* ============================================================ */}
         {/* TAB 1: ATTENDANCE & SAFE SKIPS CALCULATOR                    */}
         {/* ============================================================ */}
-        {activeTab === "attendance" && (
-          <div className="space-y-6">
-            {/* Quick-load from student enrolled subjects */}
-            {subjects.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+        <AnimatePresence mode="wait">
+          {activeTab === "attendance" && (
+            <motion.div
+              key="attendance-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {/* Quick-load from student enrolled subjects */}
+              {subjects.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-[0_2px_12px_rgba(15,43,92,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <BookOpen className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Sync from Enrolled Subject
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Select any course to auto-fill its live attended and conducted hours
+                      </span>
+                    </div>
+                  </div>
+
+                  <select
+                    value={selectedSubjectIdx}
+                    onChange={(e) => handleSubjectSelect(e.target.value)}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] shadow-inner"
+                  >
+                    <option value="overall">All Courses Combined (Overall)</option>
+                    {subjects.map((s, idx) => (
+                      <option key={idx} value={idx}>
+                        {s.name} ({s.attended}/{s.total} • {s.percentage}%)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Main Attendance Card */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-[0_4px_24px_rgba(15,43,92,0.05)] space-y-6">
+                {/* Header Metrics */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                   <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                      Sync from Enrolled Subject
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                      Select any course to auto-fill its live attended and conducted hours
-                    </span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 mb-2">
+                      <Sparkles className="w-3.5 h-3.5 text-[#0f2b5c]" />
+                      <span>Christ Attendance Engine</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                      {metrics.percentage}%
+                      <span className="text-sm font-semibold text-slate-500 ml-2">
+                        (Raw: {metrics.rawPercentage}%)
+                      </span>
+                    </h2>
+                    <p className="text-xs font-medium text-slate-600 mt-1 flex items-center gap-1.5">
+                      {metrics.status === "safe" && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      )}
+                      {metrics.status === "warning" && (
+                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      )}
+                      {metrics.status === "danger" && (
+                        <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                      )}
+                      <span>{metrics.message}</span>
+                    </p>
+                  </div>
+
+                  {/* Summary metric boxes */}
+                  <div className="flex items-center gap-3">
+                    <div className="px-4 py-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-center min-w-[90px]">
+                      <span className="text-2xl font-black text-emerald-600 block">
+                        {metrics.safeSkips}
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+                        Safe Skips
+                      </span>
+                    </div>
+
+                    <div className="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200/90 text-center min-w-[90px]">
+                      <span className="text-2xl font-black text-slate-800 block">
+                        {metrics.classesNeeded}
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        Needed
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <select
-                  value={selectedSubjectIdx}
-                  onChange={(e) => handleSubjectSelect(e.target.value)}
-                  className="px-3 py-2 rounded-xl text-xs font-medium border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
-                >
-                  <option value="overall">All Courses Combined (Overall)</option>
-                  {subjects.map((s, idx) => (
-                    <option key={idx} value={idx}>
-                      {s.name} ({s.attended}/{s.total} hrs)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Core Metrics Display Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Attendance Health
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                        metrics.status === "safe"
-                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200"
-                          : metrics.status === "warning"
-                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200"
-                          : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200"
-                      }`}
-                    >
-                      {metrics.eligibility.label}
-                    </span>
+                {/* Attendance Inputs: Conducted, Attended, Blue Form, Yellow Form */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Total Conducted
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={conducted}
+                      onChange={(e) => setConducted(Math.max(1, Number(e.target.value)))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] transition-all"
+                    />
                   </div>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-1">
-                    {metrics.adjustedPercentage}%
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {metrics.message}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Total Attended
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={attended}
+                      onChange={(e) => setAttended(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c] transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1.5">
+                      Blue Form (Medical)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={blueFormHours}
+                      onChange={(e) => setBlueFormHours(Math.max(0, Number(e.target.value)))}
+                      placeholder="0"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/60 text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                    <span className="text-[10px] font-medium text-slate-500 block mt-1">Medical Certificates</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1.5">
+                      Yellow Form (Duty)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={yellowFormHours}
+                      onChange={(e) => setYellowFormHours(Math.max(0, Number(e.target.value)))}
+                      placeholder="0"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-sm font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-600 transition-all"
+                    />
+                    <span className="text-[10px] font-medium text-slate-500 block mt-1">Fests & Hackathons</span>
+                  </div>
+                </div>
+
+                {/* Form Rule Clarification */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <HelpCircle className="w-4 h-4 text-[#0f2b5c] flex-shrink-0" />
+                    <span>Christ University Form Regulations:</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    • <strong className="text-blue-700">Blue Form (Medical Leave):</strong> Submitted with hospital/doctor certificate to condone sickness absence between 75% and 85%.
+                  </p>
+                  <p className="leading-relaxed">
+                    • <strong className="text-amber-700">Yellow Form (Duty Leave):</strong> Co-curricular representation, university fests, sports, or hackathons credited directly into attendance.
                   </p>
                 </div>
 
-                {/* Safe Skips Callout Box */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-4">
-                  <div className="text-center">
-                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 block">
-                      {metrics.safeSkips}
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                      Safe Skips
-                    </span>
+                {/* Target Attendance Requirement */}
+                <div className="pt-2 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-[#0f2b5c]" />
+                      Target Attendance Requirement
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[75, 85, 90].map((preset) => (
+                        <motion.button
+                          key={preset}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setTargetPercentage(preset)}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                            targetPercentage === preset
+                              ? "bg-[#0f2b5c] text-white shadow-sm"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {preset}%
+                        </motion.button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
-                  <div className="text-center">
-                    <span className="text-2xl font-black text-amber-600 dark:text-amber-400 block">
-                      {metrics.classesNeeded}
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                      Needed
-                    </span>
+
+                  <input
+                    type="range"
+                    min="50"
+                    max="100"
+                    value={targetPercentage}
+                    onChange={(e) => setTargetPercentage(Number(e.target.value))}
+                    className="w-full accent-[#0f2b5c] h-2 bg-slate-200 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-400">
+                    <span>75% (Condonation)</span>
+                    <span>85% (Official Rule)</span>
+                    <span>95% (Distinction)</span>
+                  </div>
+                </div>
+
+                {/* Future Classes Simulator */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Future Classes Simulator
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        See how attending or missing future hours alters your percentage
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xl font-black text-slate-900">
+                        {projectedPercentage}%
+                      </span>
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                        Projected
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                    <div className="flex-1 w-full flex items-center justify-between bg-white px-3 py-2.5 rounded-xl border border-slate-200/90 shadow-sm">
+                      <span className="text-xs font-bold text-emerald-700">
+                        Attend next classes: +{simExtraAttended}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setSimExtraAttended((prev) => Math.max(0, prev - 1))}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200"
+                        >
+                          -
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setSimExtraAttended((prev) => prev + 1)}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200"
+                        >
+                          +
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 w-full flex items-center justify-between bg-white px-3 py-2.5 rounded-xl border border-slate-200/90 shadow-sm">
+                      <span className="text-xs font-bold text-rose-700">
+                        Miss next classes: +{simExtraMissed}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setSimExtraMissed((prev) => Math.max(0, prev - 1))}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200"
+                        >
+                          -
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setSimExtraMissed((prev) => prev + 1)}
+                          className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm hover:bg-slate-200"
+                        >
+                          +
+                        </motion.button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
 
-              {/* Attendance Inputs: Conducted, Attended, Blue Form, Yellow Form */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Total Conducted
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={conducted}
-                    onChange={(e) => setConducted(Math.max(1, Number(e.target.value)))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
-                  />
-                </div>
+          {/* ============================================================ */}
+          {/* TAB 2: MARKS & ESE TARGET PREDICTOR (Sole 4.0 Scale)         */}
+          {/* ============================================================ */}
+          {activeTab === "marks" && (
+            <motion.div
+              key="marks-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {/* Pattern Presets */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-[0_4px_24px_rgba(15,43,92,0.05)] space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Course Evaluation Pattern
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Select your Continuous Internal Assessment (CIA) & End-Sem model
+                    </p>
+                  </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Total Attended
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={attended}
-                    onChange={(e) => setAttended(Math.max(0, Number(e.target.value)))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Blue Form (Medical)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={blueFormHours}
-                    onChange={(e) => setBlueFormHours(Math.max(0, Number(e.target.value)))}
-                    placeholder="0"
-                    className="w-full px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 text-sm font-semibold text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-1">Medical Certificates</span>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Yellow Form (Duty)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={yellowFormHours}
-                    onChange={(e) => setYellowFormHours(Math.max(0, Number(e.target.value)))}
-                    placeholder="0"
-                    className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 text-sm font-semibold text-amber-900 dark:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-600"
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-1">Fests & Hackathons</span>
-                </div>
-              </div>
-
-              {/* Form Rule Clarification */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
-                <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200">
-                  <HelpCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                  <span>Christ University Form Guidelines:</span>
-                </div>
-                <p className="leading-relaxed">
-                  • <strong className="text-blue-600 dark:text-blue-400">Blue Form (Medical Leave):</strong> Submitted with hospital/doctor certificate to condone sickness absence.
-                </p>
-                <p className="leading-relaxed">
-                  • <strong className="text-amber-600 dark:text-amber-400">Yellow Form (Duty Leave):</strong> Co-curricular representation, college fests, sports, or hackathons credited directly into attendance.
-                </p>
-              </div>
-
-              {/* Target Attendance Slider */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Target Attendance Requirement
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[75, 85, 90].map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => setTargetPercentage(preset)}
-                        className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition-all ${
-                          targetPercentage === preset
-                            ? "bg-[#0f2b5c] text-white shadow-sm"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl">
+                    {Object.keys(CIA_PRESETS).map((key) => (
+                      <motion.button
+                        key={key}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handlePresetChange(key)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          ciaPresetKey === key
+                            ? "bg-white text-[#0f2b5c] shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
                         }`}
                       >
-                        {preset}%
-                      </button>
+                        {key.replace("_", ":")}
+                      </motion.button>
                     ))}
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 min-w-10 text-right">
-                      {targetPercentage}%
-                    </span>
                   </div>
                 </div>
 
-                <input
-                  type="range"
-                  min={60}
-                  max={95}
-                  step={1}
-                  value={targetPercentage}
-                  onChange={(e) => setTargetPercentage(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#0f2b5c]"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                  <span>60% (Minimum)</span>
-                  <span>75% (Condonation)</span>
-                  <span>85% (Official Rule)</span>
-                  <span>95% (Distinction)</span>
-                </div>
-              </div>
-
-              {/* Future Classes Simulator */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                      Future Classes Simulator
-                    </span>
-                    <span className="text-[11px] text-slate-500 block">
-                      See how attending or missing future hours alters your percentage
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-black text-slate-900 dark:text-white">
-                      {projectedPercentage}%
-                    </span>
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                      Projected
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                  <div className="flex-1 w-full flex items-center justify-between bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                      Attend next classes: +{simExtraAttended}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => setSimExtraAttended((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm"
+                {/* Target Benchmark Goal */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Target Benchmark:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.keys(TARGET_BENCHMARKS).map((key) => (
+                      <motion.button
+                        key={key}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setTargetGoal(key)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          targetGoal === key
+                            ? "bg-[#0f2b5c] text-white border-[#0f2b5c] shadow-sm"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        }`}
                       >
-                        -
-                      </button>
-                      <button
-                        onClick={() => setSimExtraAttended((prev) => prev + 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 w-full flex items-center justify-between bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
-                      Miss next classes: +{simExtraMissed}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => setSimExtraMissed((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm"
-                      >
-                        -
-                      </button>
-                      <button
-                        onClick={() => setSimExtraMissed((prev) => prev + 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm"
-                      >
-                        +
-                      </button>
-                    </div>
+                        {TARGET_BENCHMARKS[key].label.split(" ")[0]} ({TARGET_BENCHMARKS[key].targetPct}%)
+                      </motion.button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* ============================================================ */}
-        {/* TAB 2: MARKS & ESE TARGET PREDICTOR                          */}
-        {/* ============================================================ */}
-        {activeTab === "marks" && (
-          <div className="space-y-6">
-            {/* Pattern Presets */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Course Evaluation Pattern
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Select your program's Continuous Internal Assessment (CIA) & End-Sem model
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  {Object.keys(CIA_PRESETS).map((key) => (
-                    <button
-                      key={key}
-                      onClick={() => handlePresetChange(key)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        ciaPresetKey === key
-                          ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                      }`}
-                    >
-                      {key.replace("_", ":")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Target Benchmark Goal */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Target Benchmark:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.keys(TARGET_BENCHMARKS).map((key) => (
-                    <button
-                      key={key}
-                      onClick={() => setTargetGoal(key)}
-                      className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
-                        targetGoal === key
-                          ? "bg-[#0f2b5c] text-white border-[#0f2b5c] shadow-sm"
-                          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {TARGET_BENCHMARKS[key].label.split(" ")[0]} ({TARGET_BENCHMARKS[key].targetPct}%)
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Prediction Result Banner */}
-              <div
-                className={`p-4 rounded-2xl border flex items-start gap-3 ${
-                  esePrediction.isPossible
-                    ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60"
-                    : "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60"
-                }`}
-              >
-                <Target
-                  className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                    esePrediction.isPossible ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
+                {/* Prediction Result Banner */}
+                <div
+                  className={`p-4 rounded-2xl border flex items-start gap-3.5 ${
+                    esePrediction.isPossible
+                      ? "bg-emerald-50 border-emerald-200"
+                      : "bg-rose-50 border-rose-200"
                   }`}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                      Required End-Sem Question Paper Score
-                    </span>
-                    <span className="text-xl font-black text-slate-900 dark:text-white">
-                      {Math.ceil(esePrediction.effectiveNeededEseMarks)} / {eseConductedMax}
-                    </span>
+                >
+                  <Target
+                    className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                      esePrediction.isPossible ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Required End-Sem Question Paper Score
+                      </span>
+                      <span className="text-xl font-black text-slate-900">
+                        {Math.ceil(esePrediction.effectiveNeededEseMarks)} / {eseConductedMax}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 font-medium">
+                      {esePrediction.summaryMessage}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Current Scaled CIA: {esePrediction.totalCiaConvertedScore.toFixed(1)} / {esePrediction.totalCiaMaxWeightage} Marks • Christ University 40% Question Paper Minimum Rule Active
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    {esePrediction.summaryMessage}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Current Scaled CIA: {esePrediction.totalCiaConvertedScore.toFixed(1)} / {esePrediction.totalCiaMaxWeightage} Marks • Christ University 40% Question Paper Minimum Rule Active
-                  </p>
+                </div>
+
+                {/* Component breakdown inputs */}
+                <div className="space-y-3 pt-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                    Internal Assessment Components
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {ciaComponents.map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2"
+                      >
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                          <span>{comp.name}</span>
+                          <span className="text-slate-500 font-mono text-[11px]">
+                            Weight: {comp.weightage} marks
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">
+                              Scored
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={comp.conductedMax}
+                              value={comp.scoredMarks}
+                              onChange={(e) =>
+                                updateCiaComponent(comp.id, "scoredMarks", Number(e.target.value))
+                              }
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
+                            />
+                          </div>
+                          <span className="text-slate-400 pt-4 font-bold">/</span>
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">
+                              Conducted Max
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={comp.conductedMax}
+                              onChange={(e) =>
+                                updateCiaComponent(comp.id, "conductedMax", Number(e.target.value))
+                              }
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
+                            />
+                          </div>
+                          <div className="text-right pt-4 min-w-14">
+                            <span className="text-xs font-black text-emerald-600">
+                              {(
+                                (comp.scoredMarks / Math.max(1, comp.conductedMax)) *
+                                comp.weightage
+                              ).toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Component breakdown inputs */}
-              <div className="space-y-3 pt-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                  Internal Assessment Components
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {ciaComponents.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2"
+              {/* SGPA & CGPA Simulator (Dedicated 4.0 Scale) */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-[0_4px_24px_rgba(15,43,92,0.05)] space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Semester SGPA & Cumulative CGPA
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Official Christ University 4.0 grading scale with result classification
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">
+                    Official 4.0 Scale
+                  </div>
+                </div>
+
+                {/* GPA Results Banner */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Calculated SGPA
+                    </span>
+                    <span className="text-2xl font-black text-slate-900 mt-0.5 block">
+                      {calculatedSgpa}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Max 4.00</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Cumulative CGPA
+                    </span>
+                    <span className="text-2xl font-black text-emerald-600 mt-0.5 block">
+                      {cumulativeCgpa}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Overall</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Total Credits
+                    </span>
+                    <span className="text-2xl font-black text-slate-900 mt-0.5 block">
+                      {currentTotalCredits}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">{gpaCourses.length} Courses</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Division
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 mt-2 block truncate">
+                      {resultDivision.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cumulative Inputs */}
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Previous Cumulative CGPA (optional)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="4.0"
+                      value={prevCgpa}
+                      onChange={(e) => setPrevCgpa(e.target.value)}
+                      placeholder="e.g. 3.45"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Previous Total Credits
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={prevCredits}
+                      onChange={(e) => setPrevCredits(e.target.value)}
+                      placeholder="e.g. 40"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2b5c]"
+                    />
+                  </div>
+                </div>
+
+                {/* Course List & Grade Points Table */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Courses & Enrolled Credits
+                    </span>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() =>
+                        setGpaCourses((prev) => [
+                          ...prev,
+                          {
+                            id: Date.now(),
+                            name: `Course ${prev.length + 1}`,
+                            credits: 3,
+                            grade: "O",
+                            marks: 80,
+                          },
+                        ])
+                      }
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0f2b5c] text-white text-xs font-bold shadow-sm"
                     >
-                      <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        <span>{comp.name}</span>
-                        <span className="text-slate-400 font-mono text-[11px]">
-                          Wt: {comp.weightage} marks
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">
-                            Scored
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            max={comp.conductedMax}
-                            value={comp.scoredMarks}
-                            onChange={(e) =>
-                              updateCiaComponent(comp.id, "scoredMarks", Number(e.target.value))
-                            }
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-                          />
-                        </div>
-                        <span className="text-slate-400 pt-4">/</span>
-                        <div className="flex-1">
-                          <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">
-                            Conducted Max
-                          </span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Course</span>
+                    </motion.button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {gpaCourses.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/70"
+                      >
+                        <input
+                          type="text"
+                          value={c.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setGpaCourses((prev) =>
+                              prev.map((item) =>
+                                item.id === c.id ? { ...item, name: val } : item
+                              )
+                            );
+                          }}
+                          className="flex-1 text-xs font-semibold bg-transparent text-slate-800 focus:outline-none"
+                        />
+
+                        {/* Credits */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Cred:</span>
                           <input
                             type="number"
                             min="1"
-                            value={comp.conductedMax}
-                            onChange={(e) =>
-                              updateCiaComponent(comp.id, "conductedMax", Number(e.target.value))
-                            }
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                            max="10"
+                            value={c.credits}
+                            onChange={(e) => {
+                              const cred = Math.max(1, Number(e.target.value));
+                              setGpaCourses((prev) =>
+                                prev.map((item) =>
+                                  item.id === c.id ? { ...item, credits: cred } : item
+                                )
+                              );
+                            }}
+                            className="w-12 px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 text-center"
                           />
                         </div>
-                        <div className="text-right pt-4 min-w-14">
-                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                            {(
-                              (comp.scoredMarks / Math.max(1, comp.conductedMax)) *
-                              comp.weightage
-                            ).toFixed(1)}
-                          </span>
-                        </div>
+
+                        {/* Grade Dropdown (4.0 scale points) */}
+                        <select
+                          value={c.grade}
+                          onChange={(e) => {
+                            const gr = e.target.value;
+                            setGpaCourses((prev) =>
+                              prev.map((item) =>
+                                item.id === c.id ? { ...item, grade: gr } : item
+                              )
+                            );
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none"
+                        >
+                          {Object.keys(GRADE_POINTS_4_SCALE).map((g) => (
+                            <option key={g} value={g}>
+                              {g} ({GRADE_POINTS_4_SCALE[g].point.toFixed(1)} pts)
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Remove course button */}
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() =>
+                            setGpaCourses((prev) => prev.filter((item) => item.id !== c.id))
+                          }
+                          disabled={gpaCourses.length <= 1}
+                          className="p-1 text-slate-400 hover:text-rose-500 disabled:opacity-30"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </motion.button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* GPA & Semester Classification Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Semester SGPA & Cumulative CGPA
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Official Christ University 4.0 grading scale with result classification
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  <button
-                    onClick={() => setScaleMode("4.0")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      scaleMode === "4.0"
-                        ? "bg-[#0f2b5c] text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    4.0 Scale (Official)
-                  </button>
-                  <button
-                    onClick={() => setScaleMode("10.0")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      scaleMode === "10.0"
-                        ? "bg-[#0f2b5c] text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    10.0 Scale
-                  </button>
-                </div>
-              </div>
-
-              {/* GPA Results Banner */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Calculated SGPA
-                  </span>
-                  <span className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 block">
-                    {calculatedSgpa}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {scaleMode === "4.0" ? "Max 4.00" : "Max 10.00"}
-                  </span>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Cumulative CGPA
-                  </span>
-                  <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                    {cumulativeCgpa}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Overall</span>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Total Credits
-                  </span>
-                  <span className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 block">
-                    {currentTotalCredits}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">{gpaCourses.length} Courses</span>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Division
-                  </span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-2 block truncate">
-                    {resultDivision.label}
-                  </span>
-                </div>
-              </div>
-
-              {/* Cumulative Inputs */}
-              <div className="flex items-center gap-3 pt-2">
-                <div className="flex-1">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Previous Cumulative CGPA (optional)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={scaleMode === "4.0" ? "4.0" : "10.0"}
-                    value={prevCgpa}
-                    onChange={(e) => setPrevCgpa(e.target.value)}
-                    placeholder="e.g. 3.45"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                    Previous Total Credits
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={prevCredits}
-                    onChange={(e) => setPrevCredits(e.target.value)}
-                    placeholder="e.g. 40"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       <BottomNav />

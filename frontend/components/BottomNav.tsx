@@ -3,11 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PieChart, Award, Calculator } from "lucide-react";
+import { PieChart, Calculator, Award } from "lucide-react";
+import { motion } from "framer-motion";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
 
+  // Page 1: Attendance, Page 2: Calculator, Page 3: Marks Card
   const navItems = [
     {
       label: "Attendance",
@@ -15,20 +17,20 @@ export const BottomNav: React.FC = () => {
       icon: PieChart,
     },
     {
-      label: "Marks",
-      href: "/marks",
-      icon: Award,
-    },
-    {
       label: "Calculator",
       href: "/calculator",
       icon: Calculator,
     },
+    {
+      label: "Marks Card",
+      href: "/marks",
+      icon: Award,
+    },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800/80 pb-safe">
-      <div className="max-w-md mx-auto px-6 h-16 flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-4px_24px_rgba(15,43,92,0.06)] pb-safe">
+      <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -37,23 +39,36 @@ export const BottomNav: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center w-20 py-1 transition-all duration-150 ${
-                isActive
-                  ? "text-emerald-500 font-semibold"
-                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-              }`}
+              className="relative flex flex-col items-center justify-center w-24 py-1.5 group select-none"
             >
-              <div
-                className={`relative p-1 rounded-xl transition-all ${
-                  isActive ? "bg-emerald-500/10 text-emerald-500" : ""
+              <div className="relative p-1.5 flex items-center justify-center">
+                {isActive && (
+                  <motion.div
+                    layoutId="bottomNavHighlight"
+                    className="absolute inset-0 bg-[#0f2b5c]/10 rounded-xl"
+                    transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                  />
+                )}
+                <Icon
+                  className={`w-5 h-5 relative z-10 transition-colors duration-200 ${
+                    isActive ? "text-[#0f2b5c]" : "text-slate-500 group-hover:text-slate-700"
+                  }`}
+                />
+              </div>
+              <span
+                className={`text-[11px] font-semibold tracking-tight transition-colors duration-200 mt-0.5 ${
+                  isActive ? "text-[#0f2b5c]" : "text-slate-500 group-hover:text-slate-700"
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full" />
-                )}
-              </div>
-              <span className="text-[11px] mt-0.5 tracking-tight">{item.label}</span>
+                {item.label}
+              </span>
+              {isActive && (
+                <motion.span
+                  layoutId="bottomNavDot"
+                  className="absolute bottom-1 w-1 h-1 bg-[#0f2b5c] rounded-full"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
             </Link>
           );
         })}
@@ -61,4 +76,3 @@ export const BottomNav: React.FC = () => {
     </nav>
   );
 };
-

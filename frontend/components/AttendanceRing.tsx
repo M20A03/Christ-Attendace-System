@@ -2,6 +2,7 @@
 
 import React from "react";
 import { calculateAttendanceMetrics } from "@/lib/calculations";
+import { motion } from "framer-motion";
 
 interface AttendanceRingProps {
   percentage: number;
@@ -30,33 +31,33 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
   const getColorScheme = () => {
     if (percentage >= 85) {
       return {
-        stroke: "#10b981", // emerald-500
+        stroke: "#059669",
         gradientId: "emeraldGradient",
-        startColor: "#34d399",
+        startColor: "#10b981",
         endColor: "#059669",
-        text: "text-emerald-400 dark:text-emerald-400",
-        bgBadge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-        label: "Safe Attendance",
+        text: "text-emerald-700",
+        bgBadge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        label: "Safe Attendance (≥ 85%)",
       };
     } else if (percentage >= 75) {
       return {
-        stroke: "#f59e0b", // amber-500
+        stroke: "#d97706",
         gradientId: "amberGradient",
-        startColor: "#fbbf24",
+        startColor: "#f59e0b",
         endColor: "#d97706",
-        text: "text-amber-400 dark:text-amber-400",
-        bgBadge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-        label: "Warning Zone",
+        text: "text-amber-700",
+        bgBadge: "bg-amber-50 text-amber-700 border-amber-200",
+        label: "Warning Zone (75%–85%)",
       };
     } else {
       return {
-        stroke: "#f43f5e", // rose-500
+        stroke: "#e11d48",
         gradientId: "roseGradient",
-        startColor: "#fb7185",
-        endColor: "#e11d48",
-        text: "text-rose-400 dark:text-rose-400",
-        bgBadge: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
-        label: "Critical Shortage",
+        startColor: "#f43f5e",
+        endColor: "#be123c",
+        text: "text-rose-700",
+        bgBadge: "bg-rose-50 text-rose-700 border-rose-200",
+        label: "Critical Shortage (< 75%)",
       };
     }
   };
@@ -64,12 +65,17 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
   const colors = getColorScheme();
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl border border-slate-200/90 shadow-[0_4px_24px_rgba(15,43,92,0.05)]"
+    >
       <div className="relative flex items-center justify-center">
         <svg
           width={size}
           height={size}
-          className="transform -rotate-90 filter drop-shadow-md"
+          className="transform -rotate-90 filter drop-shadow-sm"
         >
           <defs>
             <linearGradient id={colors.gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -85,7 +91,7 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
             r={radius}
             stroke="currentColor"
             strokeWidth={strokeWidth}
-            className="text-slate-100 dark:text-slate-800/80 fill-none"
+            className="text-slate-100 fill-none"
           />
 
           {/* Animated active progress */}
@@ -104,15 +110,15 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
 
         {/* Center percentage display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
-            Overall
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+            Aggregate
           </span>
-          <span className="text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+          <span className="text-5xl font-black tracking-tight text-slate-900">
             {percentage}
-            <span className="text-2xl font-bold ml-0.5 text-slate-400 dark:text-slate-400">%</span>
+            <span className="text-2xl font-bold ml-0.5 text-slate-400">%</span>
           </span>
           <span
-            className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colors.bgBadge}`}
+            className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${colors.bgBadge}`}
           >
             {colors.label}
           </span>
@@ -120,21 +126,20 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
       </div>
 
       {/* Breakdown stat pills */}
-      <div className="grid grid-cols-3 gap-3 w-full mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
+      <div className="grid grid-cols-3 gap-3 w-full mt-6 pt-5 border-t border-slate-100">
         <div className="text-center">
-          <p className="text-xs text-slate-400 dark:text-slate-500">Attended</p>
-          <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{attended}</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attended</p>
+          <p className="text-lg font-black text-slate-900 mt-0.5">{attended}</p>
         </div>
-        <div className="text-center border-x border-slate-100 dark:border-slate-800/80">
-          <p className="text-xs text-slate-400 dark:text-slate-500">Total</p>
-          <p className="text-lg font-bold text-slate-800 dark:text-slate-100">{total}</p>
+        <div className="text-center border-x border-slate-100">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+          <p className="text-lg font-black text-slate-900 mt-0.5">{total}</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-slate-400 dark:text-slate-500">Safe Skips</p>
-          <p className={`text-lg font-bold ${colors.text}`}>{metrics.safeSkips}</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Safe Skips</p>
+          <p className={`text-lg font-black mt-0.5 ${colors.text}`}>{metrics.safeSkips}</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
-
