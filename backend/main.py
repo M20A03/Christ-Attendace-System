@@ -18,6 +18,16 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger("christ-app")
+
 import db
 import crypto
 import auth
