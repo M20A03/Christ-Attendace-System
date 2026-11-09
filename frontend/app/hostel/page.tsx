@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
@@ -35,6 +35,9 @@ export default function HostelPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [punchFilter, setPunchFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
   const [isLiveWindow, setIsLiveWindow] = useState(false);
+  const hostelSyncCountRef = useRef<number>(0);
+  const lastPunchRef = useRef<string | null>(null);
+  const hostelTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const student = getAuthSession().student;
 
@@ -49,6 +52,10 @@ export default function HostelPage() {
     try {
       const res = await fetchHostelAttendance();
       setData(res);
+      // Track last punch to detect when a fresh turnstile entry occurs
+      if (res?.last_punch) {
+        lastPunchRef.current = res.last_punch;
+      }
     } catch (err: any) {
       if (err instanceof ApiError && err.statusCode === 401) {
         router.push("/?expired=true");
@@ -65,21 +72,37 @@ export default function HostelPage() {
     loadHostelData();
   }, []);
 
-  // Hostel Turnstile Live Auto-Sync Scheduler:
+  // Hostel Turnstile Live Auto-Sync Scheduler with Anti-Flagging Protection:
   // Windows: Morning 7:00 AM - 10:00 AM & Night 8:30 PM - 9:30 PM
-  // Refreshes every 10 seconds whenever app is open
+  // Smart rate limits:
+  // 1. Never requests when screen is locked or app is minimized
+  // 2. Starts at 10s intervals when walking through gate, then stretches to 30s
+  // 3. Capped at 15 requests max if phone is forgotten open on desk
   useEffect(() => {
-    const checkScheduleAndSync = () => {
+    const scheduleNextHostelSync = () => {
       const inWindow = isHostelSyncWindow(new Date());
       setIsLiveWindow(inWindow);
+
       if (inWindow && document.visibilityState === "visible") {
-        loadHostelData(true);
+        if (hostelSyncCountRef.current < 15) {
+          hostelSyncCountRef.current += 1;
+          loadHostelData(true);
+        }
       }
+
+      // 10s for first 6 checks (60 seconds), then 30s backoff
+      const delay = inWindow
+        ? (hostelSyncCountRef.current < 6 ? 10000 : 30000)
+        : 20000;
+
+      hostelTimerRef.current = setTimeout(scheduleNextHostelSync, delay);
     };
 
-    checkScheduleAndSync();
-    const interval = setInterval(checkScheduleAndSync, 10000);
-    return () => clearInterval(interval);
+    scheduleNextHostelSync();
+
+    return () => {
+      if (hostelTimerRef.current) clearTimeout(hostelTimerRef.current);
+    };
   }, []);
 
   // Sync immediately when returning to the app during biometric windows
@@ -89,6 +112,7 @@ export default function HostelPage() {
         const inWindow = isHostelSyncWindow(new Date());
         setIsLiveWindow(inWindow);
         if (inWindow) {
+          hostelSyncCountRef.current = 0; // Reset counter on manual app resume
           loadHostelData(true);
         }
       }
