@@ -8,6 +8,12 @@ export interface CUEAuthPluginInterface {
     profile?: string;
     token?: string;
   }>;
+  silentRefresh(): Promise<{
+    success: boolean;
+    raw_attendance?: string;
+    profile?: string;
+    token?: string;
+  }>;
 }
 
 export const CUEAuth = registerPlugin<CUEAuthPluginInterface>('CUEAuth');
@@ -386,4 +392,73 @@ export async function startNativePortalLogin(): Promise<{ success: boolean; erro
     }
     return { success: false, error: err?.message || 'Login failed' };
   }
+}
+
+/**
+ * Silently refreshes attendance using native WebView session cookies without opening any dialog.
+ * If successful, updates local cache and database in the background.
+ */
+export async function refreshNativeAttendance(): Promise<InterceptedAttendanceData | null> {
+  if (!isNativeApp()) return null;
+
+  try {
+    if (!CUEAuth || typeof CUEAuth.silentRefresh !== 'function') {
+      return null;
+    }
+    const res = await CUEAuth.silentRefresh();
+    if (!res || !res.success || !res.raw_attendance) {
+      return null;
+    }
+
+    let studentName = 'Christ Student';
+    let regNo = 'Student';
+    if (res.profile) {
+      try {
+        const prof = JSON.parse(res.profile);
+        const pObj = prof.profile || prof;
+        studentName = pObj.name || pObj.given_name || studentName;
+        regNo = pObj.preferred_username || pObj.username || pObj.email || regNo;
+      } catch {}
+    }
+
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('cu_auth_session');
+      if (stored) {
+        try {
+          const s = JSON.parse(stored);
+          if (s.student) {
+            studentName = s.student.name || studentName;
+            regNo = s.student.reg_number || regNo;
+          }
+        } catch {}
+      }
+    }
+
+    const studentInfo: StudentInfo = { name: studentName, reg_number: regNo };
+    const attendanceData = parseRawPortalAttendance(res.raw_attendance, studentInfo);
+    if (attendanceData && attendanceData.subjects.length > 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cu_cached_attendance', JSON.stringify(attendanceData));
+      }
+
+      // Background sync to DB for cross-device backup
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-5f08.up.railway.app';
+      const userId = `student_${regNo}`;
+      const token = res.token || 'cue_native_token';
+      fetch(`${apiBase}/attendance/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-User-Id': userId,
+        },
+        body: JSON.stringify(attendanceData),
+      }).catch(() => {});
+
+      return attendanceData;
+    }
+  } catch (err) {
+    console.warn('Native silent refresh error:', err);
+  }
+  return null;
 }

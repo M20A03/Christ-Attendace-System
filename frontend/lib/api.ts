@@ -193,14 +193,29 @@ export async function loginWithCredentials(
 
 /**
  * Fetch attendance data on demand.
- * First checks locally cached real attendance from WebView interception.
- * If not found or on refresh, queries the backend.
+ * If not forceRefresh, checks locally cached real attendance for instant render.
+ * If forceRefresh, queries native silent refresh or backend with ?refresh=true.
  */
-export async function fetchAttendance(): Promise<AttendanceData> {
+export async function fetchAttendance(forceRefresh: boolean = false): Promise<AttendanceData> {
   const session = getAuthSession();
 
-  // 1. Check if we have locally cached authentic attendance from WebView interception
-  if (typeof window !== "undefined") {
+  // 1. If running in native APK and refresh requested, attempt silent WebView background sync
+  if (forceRefresh && typeof window !== "undefined") {
+    try {
+      const { refreshNativeAttendance, isNativeApp } = await import("@/lib/nativeAuth");
+      if (isNativeApp()) {
+        const freshNative = await refreshNativeAttendance();
+        if (freshNative && freshNative.subjects && freshNative.subjects.length > 0) {
+          return freshNative;
+        }
+      }
+    } catch (err) {
+      console.warn("Native silent refresh attempt failed, trying backend fallback:", err);
+    }
+  }
+
+  // 2. If NOT forceRefresh, use local cache for instantaneous rendering
+  if (!forceRefresh && typeof window !== "undefined") {
     try {
       const localCached = localStorage.getItem("cu_cached_attendance");
       if (localCached) {
@@ -215,14 +230,24 @@ export async function fetchAttendance(): Promise<AttendanceData> {
     } catch {}
   }
 
-  // 2. Query backend
-  const res = await request<AttendanceData>("/attendance", { method: "GET" });
+  // 3. Query backend (with ?refresh=true if forced)
+  const endpoint = forceRefresh ? "/attendance?refresh=true" : "/attendance";
+  const res = await request<AttendanceData>(endpoint, { method: "GET" });
   if (res && res.subjects && res.subjects.length > 0 && typeof window !== "undefined") {
     try {
       localStorage.setItem("cu_cached_attendance", JSON.stringify(res));
     } catch {}
   }
   return res;
+}
+
+/** Explicitly clear attendance cache to force fresh pull */
+export function clearAttendanceCache() {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("cu_cached_attendance");
+    } catch {}
+  }
 }
 
 export interface HostelPunch {

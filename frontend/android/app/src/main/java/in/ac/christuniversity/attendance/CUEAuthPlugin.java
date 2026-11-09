@@ -338,4 +338,103 @@ public class CUEAuthPlugin extends Plugin {
             }
         });
     }
+
+    private WebView refreshWebView;
+    private boolean refreshIntercepted = false;
+
+    public class CUERefreshBridge {
+        private PluginCall call;
+        public CUERefreshBridge(PluginCall call) {
+            this.call = call;
+        }
+
+        @JavascriptInterface
+        public void onAttendanceResponse(String rawJson, String profileJson, String token) {
+            Log.d(TAG, "CUERefreshBridge intercepted fresh attendance!");
+            if (refreshIntercepted) return;
+            refreshIntercepted = true;
+
+            getActivity().runOnUiThread(() -> {
+                try {
+                    if (refreshWebView != null) {
+                        refreshWebView.destroy();
+                        refreshWebView = null;
+                    }
+                } catch (Exception ignored) {}
+
+                if (call != null) {
+                    try {
+                        JSObject ret = new JSObject();
+                        ret.put("success", true);
+                        ret.put("raw_attendance", rawJson);
+                        ret.put("profile", profileJson != null ? profileJson : "{}");
+                        ret.put("token", token != null ? token : "");
+                        call.resolve(ret);
+                    } catch (Exception e) {
+                        call.reject("Failed to format fresh attendance: " + e.getMessage());
+                    }
+                    call = null;
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void onToken(String token) {
+            // Token fallback
+        }
+    }
+
+    @PluginMethod
+    public void silentRefresh(PluginCall call) {
+        refreshIntercepted = false;
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                Context context = getContext();
+                if (refreshWebView != null) {
+                    try { refreshWebView.destroy(); } catch (Exception ignored) {}
+                    refreshWebView = null;
+                }
+
+                refreshWebView = new WebView(context);
+                WebSettings settings = refreshWebView.getSettings();
+                settings.setJavaScriptEnabled(true);
+                settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
+                settings.setUserAgentString(settings.getUserAgentString() + " Chrome/122.0.0.0 Mobile");
+
+                CookieManager.getInstance().setAcceptCookie(true);
+                CookieManager.getInstance().setAcceptThirdPartyCookies(refreshWebView, true);
+
+                refreshWebView.addJavascriptInterface(new CUERefreshBridge(call), "CUEBridge");
+
+                refreshWebView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public void onPageFinished(WebView view, String url) {
+                        super.onPageFinished(view, url);
+                        view.evaluateJavascript(INJECT_SCRIPT, null);
+                    }
+                });
+
+                // Safety timeout: 7.5 seconds
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (!refreshIntercepted) {
+                        try {
+                            if (refreshWebView != null) {
+                                refreshWebView.destroy();
+                                refreshWebView = null;
+                            }
+                        } catch (Exception ignored) {}
+                        try {
+                            call.reject("Silent refresh timed out (session may require re-login)");
+                        } catch (Exception ignored) {}
+                    }
+                }, 7500);
+
+                refreshWebView.loadUrl("https://cue.christuniversity.in");
+            } catch (Exception e) {
+                call.reject("Silent refresh launch failed: " + e.getMessage());
+            }
+        });
+    }
 }

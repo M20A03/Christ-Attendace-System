@@ -403,15 +403,18 @@ async def save_attendance(
 async def get_attendance(
     authorization: Optional[str] = Header(None),
     x_user_id: Optional[str] = Header(None),
+    refresh: bool = False,
 ):
     """
-    Fetches student attendance. First checks PostgreSQL cache of real student records.
+    Fetches student attendance.
+    If refresh is False, returns PostgreSQL cached attendance for fast load.
+    If refresh is True, fetches live from Christ University internal portal and updates DB cache.
     """
     token, student, effective_user_id = await resolve_student_and_token(authorization, x_user_id)
     reg_no = student.reg_number if student else None
 
-    # 1. Check if we already have real attendance cached in DB
-    if effective_user_id or reg_no:
+    # 1. If not forcing refresh, check if we already have real attendance cached in DB
+    if not refresh and (effective_user_id or reg_no):
         cached_json = await db.get_cached_attendance(effective_user_id or "", reg_no)
         if cached_json:
             import json
@@ -424,7 +427,7 @@ async def get_attendance(
             except Exception:
                 pass
 
-    # 2. Try live portal fetch
+    # 2. Live portal fetch
     res = await portal.fetch_student_attendance(token, student)
     if (effective_user_id or reg_no) and res.subjects:
         try:
@@ -432,6 +435,21 @@ async def get_attendance(
             await db.save_cached_attendance(target_id, res.model_dump_json(), reg_no)
         except Exception:
             pass
+        return res
+
+    # 3. If live portal fetch returned empty or failed, fallback to DB cache
+    if effective_user_id or reg_no:
+        cached_json = await db.get_cached_attendance(effective_user_id or "", reg_no)
+        if cached_json:
+            import json
+            try:
+                cached_dict = json.loads(cached_json)
+                if cached_dict.get("subjects"):
+                    if student:
+                        cached_dict["student"] = student.model_dump()
+                    return AttendanceResponse(**cached_dict)
+            except Exception:
+                pass
 
     return res
 

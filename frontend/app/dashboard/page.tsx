@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
     try {
       const [attResult, bioResult] = await Promise.all([
-        fetchAttendance(),
+        fetchAttendance(isRefresh),
         fetchHostelAttendance().catch(() => ({ is_hostelite: false })),
       ]);
       if (attResult.subjects && attResult.subjects.length > 0) {
@@ -57,6 +57,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadAttendance();
+  }, [loadAttendance]);
+
+  // Auto-refresh when student switches back to the app (e.g., after teacher marks attendance)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadAttendance(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [loadAttendance]);
+
+  // Auto-polling: periodically refresh live attendance every 60 seconds
+  useEffect(() => {
+    const autoPoll = setInterval(() => {
+      loadAttendance(true);
+    }, 60000);
+    return () => clearInterval(autoPoll);
   }, [loadAttendance]);
 
   // Timer for "Last updated: X seconds ago"
