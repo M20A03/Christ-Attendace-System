@@ -9,6 +9,7 @@ import { SubjectCard } from "@/components/SubjectCard";
 import { TodayClasses } from "@/components/TodayClasses";
 import { SkeletonHeroRing, SkeletonSubjectCard, SkeletonList } from "@/components/SkeletonLoader";
 import { fetchAttendance, fetchHostelAttendance, AttendanceData, HostelBiometricInfo, ApiError } from "@/lib/api";
+import { isAttendanceSyncWindow } from "@/lib/syncSchedule";
 import { getAuthSession } from "@/lib/auth";
 import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen, Building2, Fingerprint, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [isLiveWindow, setIsLiveWindow] = useState(false);
   const lastSyncTimeRef = useRef<number>(Date.now());
 
   const loadAttendance = useCallback(async (isRefresh = false) => {
@@ -61,14 +63,37 @@ export default function DashboardPage() {
     loadAttendance();
   }, [loadAttendance]);
 
-  // Gentle auto-refresh when student returns to app, safely throttled to max once every 3 minutes.
-  // Prevents spamming university servers with unnecessary requests while keeping records fresh.
+  // Attendance Live Auto-Sync Scheduler:
+  // Active slots: 7:30, 8:30, 9:30 (first 15 min), and 10 AM, 11 AM, 12 PM, 1 PM, 2 PM, 3 PM, 4 PM, 5 PM (first 15 min)
+  // Refreshes every 15 seconds while phone/app is open
+  useEffect(() => {
+    const checkScheduleAndSync = () => {
+      const inWindow = isAttendanceSyncWindow(new Date());
+      setIsLiveWindow(inWindow);
+      if (inWindow && document.visibilityState === "visible") {
+        loadAttendance(true);
+      }
+    };
+
+    checkScheduleAndSync();
+    const syncInterval = setInterval(checkScheduleAndSync, 15000);
+    return () => clearInterval(syncInterval);
+  }, [loadAttendance]);
+
+  // Auto-refresh when student returns to app (e.g. unlocks phone)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
-        if (timeSinceLastSync > 180000) {
+        const inWindow = isAttendanceSyncWindow(new Date());
+        setIsLiveWindow(inWindow);
+        if (inWindow) {
           loadAttendance(true);
+        } else {
+          // Outside live window: refresh only if at least 3 minutes elapsed since last sync
+          const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+          if (timeSinceLastSync > 180000) {
+            loadAttendance(true);
+          }
         }
       }
     };
@@ -148,7 +173,13 @@ export default function DashboardPage() {
               <RefreshCw
                 className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-400"}`}
               />
-              <span>{refreshing ? "Refreshing..." : `Live • ${formatSecondsAgo(secondsAgo)}`}</span>
+              <span>
+                {refreshing
+                  ? "Updating Live..."
+                  : isLiveWindow
+                  ? `Live 15s • ${formatSecondsAgo(secondsAgo)}`
+                  : `Live • ${formatSecondsAgo(secondsAgo)}`}
+              </span>
             </motion.button>
           </div>
 

@@ -204,8 +204,8 @@ export async function fetchAttendance(forceRefresh: boolean = false): Promise<At
   const session = getAuthSession();
   const now = Date.now();
 
-  // Protect against spamming university servers: if refreshed within 15s, return cached data
-  if (forceRefresh && now - lastLiveFetchTimestamp < 15000 && typeof window !== "undefined") {
+  // Prevent accidental rapid double-taps within 3 seconds
+  if (forceRefresh && now - lastLiveFetchTimestamp < 3000 && typeof window !== "undefined") {
     try {
       const localCached = localStorage.getItem("cu_cached_attendance");
       if (localCached) {

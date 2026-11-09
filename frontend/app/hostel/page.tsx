@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
 import { fetchHostelAttendance, HostelBiometricInfo, HostelPunch, ApiError } from "@/lib/api";
+import { isHostelSyncWindow } from "@/lib/syncSchedule";
 import { getAuthSession } from "@/lib/auth";
 import {
   Building2,
@@ -33,6 +34,7 @@ export default function HostelPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [punchFilter, setPunchFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
+  const [isLiveWindow, setIsLiveWindow] = useState(false);
 
   const student = getAuthSession().student;
 
@@ -61,6 +63,38 @@ export default function HostelPage() {
 
   useEffect(() => {
     loadHostelData();
+  }, []);
+
+  // Hostel Turnstile Live Auto-Sync Scheduler:
+  // Windows: Morning 7:00 AM - 10:00 AM & Night 8:30 PM - 9:30 PM
+  // Refreshes every 10 seconds whenever app is open
+  useEffect(() => {
+    const checkScheduleAndSync = () => {
+      const inWindow = isHostelSyncWindow(new Date());
+      setIsLiveWindow(inWindow);
+      if (inWindow && document.visibilityState === "visible") {
+        loadHostelData(true);
+      }
+    };
+
+    checkScheduleAndSync();
+    const interval = setInterval(checkScheduleAndSync, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync immediately when returning to the app during biometric windows
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const inWindow = isHostelSyncWindow(new Date());
+        setIsLiveWindow(inWindow);
+        if (inWindow) {
+          loadHostelData(true);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   // Demo sample data for Day Scholars who want to preview hostel features
@@ -159,7 +193,13 @@ export default function HostelPage() {
                 <RefreshCw
                   className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-400"}`}
                 />
-                <span>{refreshing ? "Syncing Biometrics..." : "Live Gate Sync"}</span>
+                <span>
+                  {refreshing
+                    ? "Syncing Biometrics..."
+                    : isLiveWindow
+                    ? "Live Turnstile (10s)"
+                    : "Live Gate Sync"}
+                </span>
               </motion.button>
             </div>
           </div>
