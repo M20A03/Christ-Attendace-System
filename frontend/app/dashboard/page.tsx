@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const lastSyncTimeRef = useRef<number>(Date.now());
 
   const loadAttendance = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -43,6 +44,7 @@ export default function DashboardPage() {
       }
       setHostelData(bioResult);
       setSecondsAgo(0);
+      lastSyncTimeRef.current = Date.now();
     } catch (err: any) {
       if (err instanceof ApiError && err.statusCode === 401) {
         router.push("/?expired=true");
@@ -59,23 +61,19 @@ export default function DashboardPage() {
     loadAttendance();
   }, [loadAttendance]);
 
-  // Auto-refresh when student switches back to the app (e.g., after teacher marks attendance)
+  // Gentle auto-refresh when student returns to app, safely throttled to max once every 3 minutes.
+  // Prevents spamming university servers with unnecessary requests while keeping records fresh.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        loadAttendance(true);
+        const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+        if (timeSinceLastSync > 180000) {
+          loadAttendance(true);
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [loadAttendance]);
-
-  // Auto-polling: periodically refresh live attendance every 60 seconds
-  useEffect(() => {
-    const autoPoll = setInterval(() => {
-      loadAttendance(true);
-    }, 60000);
-    return () => clearInterval(autoPoll);
   }, [loadAttendance]);
 
   // Timer for "Last updated: X seconds ago"

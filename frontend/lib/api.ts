@@ -191,13 +191,34 @@ export async function loginWithCredentials(
   return data;
 }
 
+// Rate-limiting throttle to protect university servers and avoid flagging student accounts
+let lastLiveFetchTimestamp = 0;
+
 /**
  * Fetch attendance data on demand.
  * If not forceRefresh, checks locally cached real attendance for instant render.
  * If forceRefresh, queries native silent refresh or backend with ?refresh=true.
+ * Includes a 15-second throttle so repeated rapid taps don't spam Christ University servers.
  */
 export async function fetchAttendance(forceRefresh: boolean = false): Promise<AttendanceData> {
   const session = getAuthSession();
+  const now = Date.now();
+
+  // Protect against spamming university servers: if refreshed within 15s, return cached data
+  if (forceRefresh && now - lastLiveFetchTimestamp < 15000 && typeof window !== "undefined") {
+    try {
+      const localCached = localStorage.getItem("cu_cached_attendance");
+      if (localCached) {
+        const parsed: AttendanceData = JSON.parse(localCached);
+        if (parsed && parsed.subjects && parsed.subjects.length > 0) {
+          if (session.student) {
+            parsed.student = session.student;
+          }
+          return parsed;
+        }
+      }
+    } catch {}
+  }
 
   // 1. If running in native APK and refresh requested, attempt silent WebView background sync
   if (forceRefresh && typeof window !== "undefined") {
@@ -234,6 +255,7 @@ export async function fetchAttendance(forceRefresh: boolean = false): Promise<At
   const endpoint = forceRefresh ? "/attendance?refresh=true" : "/attendance";
   const res = await request<AttendanceData>(endpoint, { method: "GET" });
   if (res && res.subjects && res.subjects.length > 0 && typeof window !== "undefined") {
+    lastLiveFetchTimestamp = Date.now();
     try {
       localStorage.setItem("cu_cached_attendance", JSON.stringify(res));
     } catch {}
