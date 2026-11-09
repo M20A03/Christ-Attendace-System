@@ -9,7 +9,12 @@ import { SubjectCard } from "@/components/SubjectCard";
 import { TodayClasses } from "@/components/TodayClasses";
 import { SkeletonHeroRing, SkeletonSubjectCard, SkeletonList } from "@/components/SkeletonLoader";
 import { fetchAttendance, fetchHostelAttendance, AttendanceData, HostelBiometricInfo, ApiError } from "@/lib/api";
-import { isAttendanceSyncWindow } from "@/lib/syncSchedule";
+import {
+  isAttendanceSyncWindow,
+  getAttendanceWindowKey,
+  getAdaptiveSyncInterval,
+  MAX_AUTO_SYNC_PER_WINDOW,
+} from "@/lib/syncSchedule";
 import { getAuthSession } from "@/lib/auth";
 import { RefreshCw, Clock, AlertCircle, Calendar, BookOpen, Building2, Fingerprint, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
@@ -25,6 +30,9 @@ export default function DashboardPage() {
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [isLiveWindow, setIsLiveWindow] = useState(false);
   const lastSyncTimeRef = useRef<number>(Date.now());
+  const currentWindowKeyRef = useRef<string | null>(null);
+  const windowSyncCountRef = useRef<number>(0);
+  const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadAttendance = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -63,21 +71,47 @@ export default function DashboardPage() {
     loadAttendance();
   }, [loadAttendance]);
 
-  // Attendance Live Auto-Sync Scheduler:
-  // Active slots: 7:30, 8:30, 9:30 (first 15 min), and 10 AM, 11 AM, 12 PM, 1 PM, 2 PM, 3 PM, 4 PM, 5 PM (first 15 min)
-  // Refreshes every 15 seconds while phone/app is open
+  // Attendance Live Auto-Sync Scheduler with Anti-Flagging Protection:
+  // Slots: 7:30, 8:30, 9:00, 9:30, and 10 AM to 5 PM (first 15 min of each lecture)
+  // Smart rate limits:
+  // 1. Never requests when screen is locked or app is minimized (visibilityState === "hidden")
+  // 2. Starts at 15s intervals, then backs off to 30s and 60s
+  // 3. Maximum 12 requests capped per 15-min window if phone is forgotten open
   useEffect(() => {
-    const checkScheduleAndSync = () => {
-      const inWindow = isAttendanceSyncWindow(new Date());
+    const scheduleNextSync = () => {
+      const now = new Date();
+      const inWindow = isAttendanceSyncWindow(now);
+      const windowKey = getAttendanceWindowKey(now);
+
       setIsLiveWindow(inWindow);
-      if (inWindow && document.visibilityState === "visible") {
-        loadAttendance(true);
+
+      // Reset count when entering a brand-new lecture marking window
+      if (windowKey !== currentWindowKeyRef.current) {
+        currentWindowKeyRef.current = windowKey;
+        windowSyncCountRef.current = 0;
       }
+
+      if (inWindow && document.visibilityState === "visible") {
+        // If student forgot phone open on desk, cap requests at MAX_AUTO_SYNC_PER_WINDOW (12 reqs)
+        if (windowSyncCountRef.current < MAX_AUTO_SYNC_PER_WINDOW) {
+          windowSyncCountRef.current += 1;
+          loadAttendance(true);
+        }
+      }
+
+      // Compute dynamic delay for the next pulse
+      const delay = inWindow
+        ? getAdaptiveSyncInterval(windowSyncCountRef.current)
+        : 20000;
+
+      autoSyncTimerRef.current = setTimeout(scheduleNextSync, delay);
     };
 
-    checkScheduleAndSync();
-    const syncInterval = setInterval(checkScheduleAndSync, 15000);
-    return () => clearInterval(syncInterval);
+    scheduleNextSync();
+
+    return () => {
+      if (autoSyncTimerRef.current) clearTimeout(autoSyncTimerRef.current);
+    };
   }, [loadAttendance]);
 
   // Auto-refresh when student returns to app (e.g. unlocks phone)
@@ -87,6 +121,7 @@ export default function DashboardPage() {
         const inWindow = isAttendanceSyncWindow(new Date());
         setIsLiveWindow(inWindow);
         if (inWindow) {
+          // Reset window count on manual screen unlock so student gets immediate live refresh
           loadAttendance(true);
         } else {
           // Outside live window: refresh only if at least 3 minutes elapsed since last sync
