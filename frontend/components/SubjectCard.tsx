@@ -59,7 +59,8 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
           "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
         icon: <CheckCircle2 className="w-4 h-4 text-slate-500 mr-1.5 flex-shrink-0" />,
         adviceColor: "text-slate-600 dark:text-slate-400 font-medium",
-        label: "Not Started (0 Classes)",
+        cardBorder: "border-l-4 border-l-slate-300 dark:border-l-slate-700",
+        label: "Not Started",
       };
     }
     if (isHigh85) {
@@ -69,16 +70,18 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
           "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
         icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mr-1.5 flex-shrink-0" />,
         adviceColor: "text-emerald-700 dark:text-emerald-300 font-bold",
+        cardBorder: "border-l-4 border-l-emerald-500",
         label: "Safe (85%+)",
       };
     } else if (isEligible75) {
       return {
-        barColor: "bg-blue-500",
+        barColor: "bg-blue-600",
         badgeBg:
           "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
         icon: <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-1.5 flex-shrink-0" />,
         adviceColor: "text-blue-700 dark:text-blue-300 font-bold",
-        label: "Safe (75%+)",
+        cardBorder: "border-l-4 border-l-blue-500",
+        label: "Eligible (75%+)",
       };
     } else {
       return {
@@ -87,6 +90,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
           "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
         icon: <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 mr-1.5 flex-shrink-0" />,
         adviceColor: "text-rose-700 dark:text-rose-300 font-bold",
+        cardBorder: "border-l-4 border-l-rose-500",
         label: "Below 75%",
       };
     }
@@ -96,9 +100,10 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
 
   return (
     <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className="bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_2px_12px_rgba(15,43,92,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] hover:shadow-md transition-all flex flex-col justify-between"
+      whileHover={{ y: -2, scale: 1.004 }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      className={`bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800/80 shadow-[0_2px_12px_rgba(15,43,92,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] hover:shadow-md transition-all flex flex-col justify-between ${styling.cardBorder}`}
     >
       <div>
         {/* Header with subject name & percentage badge */}
@@ -110,23 +115,23 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
                   {subject.subject_code}
                 </span>
               )}
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border ${styling.badgeBg}`}>
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold uppercase tracking-wider border ${styling.badgeBg}`}>
                 {styling.label}
               </span>
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug line-clamp-2 mt-0.5">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug line-clamp-2 mt-1">
               {subject.name}
             </h3>
             {subject.faculty && (
               <p className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-1">
-                <User className="w-3 h-3 mr-1 opacity-70" />
+                <User className="w-3 h-3 mr-1 opacity-70 flex-shrink-0" />
                 <span className="truncate">{subject.faculty}</span>
               </p>
             )}
           </div>
 
           <div
-            className={`px-2.5 py-1 rounded-xl text-xs font-black border flex-shrink-0 font-mono ${styling.badgeBg}`}
+            className={`px-2.5 py-1 rounded-xl text-xs font-black border flex-shrink-0 font-mono shadow-2xs ${styling.badgeBg}`}
           >
             {isZeroConducted ? "0%" : `${subject.percentage}%`}
           </div>
@@ -158,18 +163,18 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({ subject }) => {
               style={{ width: `${isZeroConducted ? 0 : Math.min(subject.percentage, 100)}%` }}
             />
           </div>
-          <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
+          <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1.5 font-mono">
             <span>0%</span>
-            <span className="text-blue-600 dark:text-blue-400 font-semibold">75% Target</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">85% Target</span>
+            <span className="text-blue-600 dark:text-blue-400 font-semibold">75% Mid-Sem</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">85% End-Sem</span>
             <span>100%</span>
           </div>
         </div>
       </div>
 
       {/* Actionable Skip / Need Status line */}
-      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-        <div className="flex items-center text-xs">
+      <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="flex items-center text-xs p-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/60">
           {styling.icon}
           <span className={styling.adviceColor}>{adviceText}</span>
         </div>

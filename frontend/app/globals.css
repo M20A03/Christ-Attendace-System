@@ -19,6 +19,14 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Allow text selection inside readable cards and confessions */
+p, span, h1, h2, h3, h4, input, textarea {
+  user-select: text;
 }
 
 /* iOS Safe Area Utilities */

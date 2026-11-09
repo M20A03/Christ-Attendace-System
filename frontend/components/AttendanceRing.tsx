@@ -66,11 +66,17 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(15,43,92,0.05)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-colors duration-200"
+      transition={{ type: "spring", stiffness: 350, damping: 26 }}
+      className="relative flex flex-col items-center justify-center p-6 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_4px_24px_-2px_rgba(15,43,92,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all duration-300 overflow-hidden"
     >
+      {/* Subtle ambient colored glow behind the ring */}
+      <div
+        className="absolute top-12 w-48 h-48 rounded-full blur-3xl opacity-15 dark:opacity-25 pointer-events-none transition-all duration-700"
+        style={{ background: colors.startColor }}
+      />
+
       <div className="relative flex items-center justify-center">
         <svg
           width={size}
@@ -91,7 +97,7 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
             r={radius}
             stroke="currentColor"
             strokeWidth={strokeWidth}
-            className="text-slate-100 dark:text-slate-800 fill-none"
+            className="text-slate-100 dark:text-slate-800/90 fill-none"
           />
 
           {/* Animated active progress with Emil spring feel */}
@@ -110,7 +116,7 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
 
         {/* Center percentage display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
             Aggregate
           </span>
           <span className="text-5xl font-black tracking-tight text-slate-900 dark:text-slate-50">
@@ -118,7 +124,7 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
             <span className="text-2xl font-bold ml-0.5 text-slate-400 dark:text-slate-500">%</span>
           </span>
           <span
-            className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${colors.bgBadge}`}
+            className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${colors.bgBadge} shadow-2xs`}
           >
             {colors.label}
           </span>
@@ -126,17 +132,17 @@ export const AttendanceRing: React.FC<AttendanceRingProps> = ({
       </div>
 
       {/* Breakdown stat pills */}
-      <div className="grid grid-cols-3 gap-3 w-full mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
-        <div className="text-center">
-          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Attended</p>
+      <div className="grid grid-cols-3 gap-2.5 w-full mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="text-center p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Attended</p>
           <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5 font-mono">{attended}</p>
         </div>
-        <div className="text-center border-x border-slate-100 dark:border-slate-800/80">
-          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total</p>
+        <div className="text-center p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total</p>
           <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5 font-mono">{total}</p>
         </div>
-        <div className="text-center">
-          <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Safe Skips</p>
+        <div className="text-center p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Safe Skips</p>
           <p className={`text-lg font-black mt-0.5 font-mono ${colors.text}`}>{metrics.safeSkips}</p>
         </div>
       </div>
